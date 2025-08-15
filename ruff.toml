@@ -34,6 +34,8 @@ ignore = [
     "S101",   # Use of assert (needed for tests)
     "S105",   # Possible hardcoded password
     "S106",   # Possible hardcoded password
+    "S603",   # subprocess without shell equals true (git commands are safe)
+    "S607",   # Starting a process with partial executable path (git is standard)
     "ARG001", # Unused function argument
     "ARG002", # Unused method argument
     "RET504", # Unnecessary assignment before return
