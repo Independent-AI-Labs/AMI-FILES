@@ -3,6 +3,22 @@
 from typing import Any
 
 
+def _add_repo_path_property(properties: dict) -> dict:
+    """Add repo_path property to tool properties.
+
+    Args:
+        properties: Tool properties dict
+
+    Returns:
+        Updated properties dict with repo_path
+    """
+    properties["repo_path"] = {
+        "type": "string",
+        "description": "Git repository path relative to root directory (optional)",
+    }
+    return properties
+
+
 def get_git_tools() -> list[dict[str, Any]]:
     """Get all git-related tool definitions.
 
@@ -11,27 +27,55 @@ def get_git_tools() -> list[dict[str, Any]]:
     """
     return [
         {
+            "name": "git_status",
+            "description": "Get the status of the git repository",
+            "inputSchema": {
+                "type": "object",
+                "properties": _add_repo_path_property(
+                    {
+                        "short": {
+                            "type": "boolean",
+                            "description": "Use short format",
+                            "default": False,
+                        },
+                        "branch": {
+                            "type": "boolean",
+                            "description": "Show branch information",
+                            "default": True,
+                        },
+                        "untracked": {
+                            "type": "boolean",
+                            "description": "Show untracked files",
+                            "default": True,
+                        },
+                    }
+                ),
+            },
+        },
+        {
             "name": "git_stage",
             "description": "Stage files for commit (git add)",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "paths": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "File paths to stage (relative to root). Use ['.'] to stage all.",
-                    },
-                    "force": {
-                        "type": "boolean",
-                        "description": "Force add ignored files",
-                        "default": False,
-                    },
-                    "update": {
-                        "type": "boolean",
-                        "description": "Only update tracked files",
-                        "default": False,
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "File paths to stage (relative to root). Use ['.'] to stage all.",
+                        },
+                        "force": {
+                            "type": "boolean",
+                            "description": "Force add ignored files",
+                            "default": False,
+                        },
+                        "update": {
+                            "type": "boolean",
+                            "description": "Only update tracked files",
+                            "default": False,
+                        },
+                    }
+                ),
                 "required": ["paths"],
             },
         },
@@ -40,13 +84,15 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Unstage files from staging area (git reset HEAD)",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "paths": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "File paths to unstage. Empty array unstages all.",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "File paths to unstage. Empty array unstages all.",
+                        },
+                    }
+                ),
                 "required": ["paths"],
             },
         },
@@ -55,26 +101,28 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Create a commit with staged changes",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "message": {
-                        "type": "string",
-                        "description": "Commit message",
-                    },
-                    "amend": {
-                        "type": "boolean",
-                        "description": "Amend the last commit",
-                        "default": False,
-                    },
-                    "allow_empty": {
-                        "type": "boolean",
-                        "description": "Allow empty commits",
-                        "default": False,
-                    },
-                    "author": {
-                        "type": "string",
-                        "description": "Override author (format: 'Name <email>')",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "message": {
+                            "type": "string",
+                            "description": "Commit message",
+                        },
+                        "amend": {
+                            "type": "boolean",
+                            "description": "Amend the last commit",
+                            "default": False,
+                        },
+                        "allow_empty": {
+                            "type": "boolean",
+                            "description": "Allow empty commits",
+                            "default": False,
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Override author (format: 'Name <email>')",
+                        },
+                    }
+                ),
                 "required": ["message"],
             },
         },
@@ -83,32 +131,34 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Show differences between files",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "paths": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific paths to diff. Empty for all changes.",
-                    },
-                    "staged": {
-                        "type": "boolean",
-                        "description": "Show staged changes (--cached)",
-                        "default": False,
-                    },
-                    "name_only": {
-                        "type": "boolean",
-                        "description": "Show only file names",
-                        "default": False,
-                    },
-                    "stat": {
-                        "type": "boolean",
-                        "description": "Show diffstat instead of patch",
-                        "default": False,
-                    },
-                    "commit": {
-                        "type": "string",
-                        "description": "Show diff for specific commit",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Specific paths to diff. Empty for all changes.",
+                        },
+                        "staged": {
+                            "type": "boolean",
+                            "description": "Show staged changes (--cached)",
+                            "default": False,
+                        },
+                        "name_only": {
+                            "type": "boolean",
+                            "description": "Show only file names",
+                            "default": False,
+                        },
+                        "stat": {
+                            "type": "boolean",
+                            "description": "Show diffstat instead of patch",
+                            "default": False,
+                        },
+                        "commit": {
+                            "type": "string",
+                            "description": "Show diff for specific commit",
+                        },
+                    }
+                ),
             },
         },
         {
@@ -116,39 +166,41 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Show commit history (git log)",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of commits to show",
-                        "default": 20,
-                    },
-                    "oneline": {
-                        "type": "boolean",
-                        "description": "Show in compact format",
-                        "default": True,
-                    },
-                    "paths": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Show history for specific paths",
-                    },
-                    "author": {
-                        "type": "string",
-                        "description": "Filter by author",
-                    },
-                    "since": {
-                        "type": "string",
-                        "description": "Show commits since date (e.g., '2 weeks ago')",
-                    },
-                    "until": {
-                        "type": "string",
-                        "description": "Show commits until date",
-                    },
-                    "grep": {
-                        "type": "string",
-                        "description": "Filter commits by message pattern",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of commits to show",
+                            "default": 20,
+                        },
+                        "oneline": {
+                            "type": "boolean",
+                            "description": "Show in compact format",
+                            "default": True,
+                        },
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Show history for specific paths",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Filter by author",
+                        },
+                        "since": {
+                            "type": "string",
+                            "description": "Show commits since date (e.g., '2 weeks ago')",
+                        },
+                        "until": {
+                            "type": "string",
+                            "description": "Show commits until date",
+                        },
+                        "grep": {
+                            "type": "string",
+                            "description": "Filter commits by message pattern",
+                        },
+                    }
+                ),
             },
         },
         {
@@ -156,22 +208,24 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Restore working tree files",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "paths": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "File paths to restore",
-                    },
-                    "staged": {
-                        "type": "boolean",
-                        "description": "Restore from staging area",
-                        "default": False,
-                    },
-                    "source": {
-                        "type": "string",
-                        "description": "Restore from specific commit/branch",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "File paths to restore",
+                        },
+                        "staged": {
+                            "type": "boolean",
+                            "description": "Restore from staging area",
+                            "default": False,
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": "Restore from specific commit/branch",
+                        },
+                    }
+                ),
                 "required": ["paths"],
             },
         },
@@ -180,32 +234,34 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Fetch updates from remote repository",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "remote": {
-                        "type": "string",
-                        "description": "Remote name",
-                        "default": "origin",
-                    },
-                    "branch": {
-                        "type": "string",
-                        "description": "Specific branch to fetch",
-                    },
-                    "all": {
-                        "type": "boolean",
-                        "description": "Fetch all remotes",
-                        "default": False,
-                    },
-                    "prune": {
-                        "type": "boolean",
-                        "description": "Prune deleted remote branches",
-                        "default": False,
-                    },
-                    "tags": {
-                        "type": "boolean",
-                        "description": "Fetch tags",
-                        "default": True,
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "remote": {
+                            "type": "string",
+                            "description": "Remote name",
+                            "default": "origin",
+                        },
+                        "branch": {
+                            "type": "string",
+                            "description": "Specific branch to fetch",
+                        },
+                        "all": {
+                            "type": "boolean",
+                            "description": "Fetch all remotes",
+                            "default": False,
+                        },
+                        "prune": {
+                            "type": "boolean",
+                            "description": "Prune deleted remote branches",
+                            "default": False,
+                        },
+                        "tags": {
+                            "type": "boolean",
+                            "description": "Fetch tags",
+                            "default": True,
+                        },
+                    }
+                ),
             },
         },
         {
@@ -213,31 +269,33 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Pull changes from remote repository",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "remote": {
-                        "type": "string",
-                        "description": "Remote name",
-                        "default": "origin",
-                    },
-                    "branch": {
-                        "type": "string",
-                        "description": "Branch to pull from",
-                    },
-                    "rebase": {
-                        "type": "boolean",
-                        "description": "Use rebase instead of merge",
-                        "default": False,
-                    },
-                    "ff_only": {
-                        "type": "boolean",
-                        "description": "Only fast-forward merge",
-                        "default": False,
-                    },
-                    "strategy": {
-                        "type": "string",
-                        "description": "Merge strategy (e.g., 'ours', 'theirs')",
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "remote": {
+                            "type": "string",
+                            "description": "Remote name",
+                            "default": "origin",
+                        },
+                        "branch": {
+                            "type": "string",
+                            "description": "Branch to pull from",
+                        },
+                        "rebase": {
+                            "type": "boolean",
+                            "description": "Use rebase instead of merge",
+                            "default": False,
+                        },
+                        "ff_only": {
+                            "type": "boolean",
+                            "description": "Only fast-forward merge",
+                            "default": False,
+                        },
+                        "strategy": {
+                            "type": "string",
+                            "description": "Merge strategy (e.g., 'ours', 'theirs')",
+                        },
+                    }
+                ),
             },
         },
         {
@@ -245,7 +303,7 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Abort an ongoing merge operation",
             "inputSchema": {
                 "type": "object",
-                "properties": {},
+                "properties": _add_repo_path_property({}),
             },
         },
         {
@@ -253,37 +311,39 @@ def get_git_tools() -> list[dict[str, Any]]:
             "description": "Push commits to remote repository",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "remote": {
-                        "type": "string",
-                        "description": "Remote name",
-                        "default": "origin",
-                    },
-                    "branch": {
-                        "type": "string",
-                        "description": "Branch to push",
-                    },
-                    "force": {
-                        "type": "boolean",
-                        "description": "Force push (use with caution)",
-                        "default": False,
-                    },
-                    "set_upstream": {
-                        "type": "boolean",
-                        "description": "Set upstream tracking branch",
-                        "default": False,
-                    },
-                    "tags": {
-                        "type": "boolean",
-                        "description": "Push tags",
-                        "default": False,
-                    },
-                    "dry_run": {
-                        "type": "boolean",
-                        "description": "Dry run (show what would be pushed)",
-                        "default": False,
-                    },
-                },
+                "properties": _add_repo_path_property(
+                    {
+                        "remote": {
+                            "type": "string",
+                            "description": "Remote name",
+                            "default": "origin",
+                        },
+                        "branch": {
+                            "type": "string",
+                            "description": "Branch to push",
+                        },
+                        "force": {
+                            "type": "boolean",
+                            "description": "Force push (use with caution)",
+                            "default": False,
+                        },
+                        "set_upstream": {
+                            "type": "boolean",
+                            "description": "Set upstream tracking branch",
+                            "default": False,
+                        },
+                        "tags": {
+                            "type": "boolean",
+                            "description": "Push tags",
+                            "default": False,
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "description": "Dry run (show what would be pushed)",
+                            "default": False,
+                        },
+                    }
+                ),
             },
         },
     ]

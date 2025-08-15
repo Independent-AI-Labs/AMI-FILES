@@ -15,6 +15,7 @@ from .git_handlers import (
     git_push,
     git_restore,
     git_stage,
+    git_status,
     git_unstage,
 )
 from .handlers import (
@@ -52,6 +53,7 @@ class ToolExecutor:
             "modify_file": modify_file,
             "replace_in_file": replace_in_file,
             # Git tools
+            "git_status": git_status,
             "git_stage": git_stage,
             "git_unstage": git_unstage,
             "git_commit": git_commit,
