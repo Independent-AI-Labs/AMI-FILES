@@ -83,8 +83,9 @@ class FileUtils:
         except (ValueError, TypeError) as e:
             # Catch specific, expected errors for better diagnostics
             raise ValueError(f"Invalid file path '{file_path}': {e}") from e
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            # Catch any other unexpected errors during path resolution
+        except (OSError, RuntimeError) as e:
+            # Catch filesystem and runtime errors during path resolution
+            logging.error(f"Error resolving path '{file_path}': {e}")
             raise ValueError(
                 f"An unexpected error occurred while resolving path '{file_path}': {e}"
             ) from e
@@ -285,7 +286,8 @@ class FileUtils:
                 diff_text = "\n".join(diff_lines)
 
             return diff_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, MemoryError) as e:
+            logging.warning(f"Failed to generate diff: {e}")
             return f"Failed to generate diff: {e}"
 
     @staticmethod
@@ -533,7 +535,8 @@ class FileUtils:
                 return True
             except UnicodeDecodeError:
                 return False
-        except Exception:
+        except (OSError, IOError) as e:
+            logging.debug(f"Error checking if file is text: {e}")
             return False
 
     @staticmethod
@@ -963,7 +966,8 @@ class FileUtils:
 
         except PermissionError as e:
             return False, f"Permission denied deleting '{item_path}': {e}"
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, RuntimeError) as e:
+            logging.error(f"Error deleting '{item_path}': {e}")
             return False, f"Error deleting '{item_path}': {e}"
 
     @staticmethod
