@@ -1,7 +1,6 @@
 """Pre-commit validation for file operations."""
 
 import contextlib
-import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -9,45 +8,17 @@ from typing import Any
 
 from loguru import logger
 
+from .file_utils import FileUtils
+
 
 class PreCommitValidator:
     """Validates files using pre-commit hooks before writing."""
 
-    def __init__(self, config_path: Path | None = None):
-        """Initialize the validator.
-
-        Args:
-            config_path: Path to precommit config JSON
-        """
-        if config_path is None:
-            config_path = Path(__file__).parent / "precommit_config.json"
-
-        self.config = self._load_config(config_path)
-        self.enabled = self.config.get("enabled", True)
-        self.file_extensions = self.config.get("file_extensions", {})
-        self.skip_on_missing = self.config.get("skip_on_missing_hook", True)
-        self.max_file_size_kb = self.config.get("max_file_size_kb", 1024)
-
-    def _load_config(self, config_path: Path) -> dict[str, Any]:
-        """Load configuration from JSON file.
-
-        Args:
-            config_path: Path to config file
-
-        Returns:
-            Configuration dictionary
-        """
-        if not config_path.exists():
-            logger.warning(f"Pre-commit config not found at {config_path}")
-            return {"enabled": False}
-
-        try:
-            with config_path.open() as f:
-                data: dict[str, Any] = json.load(f)
-                return data
-        except (json.JSONDecodeError, OSError) as e:
-            logger.error(f"Failed to load pre-commit config: {e}")
-            return {"enabled": False}
+    def __init__(self):
+        """Initialize the validator."""
+        self.enabled = True
+        self.skip_on_missing = True
+        self.max_file_size_kb = 1024
 
     def _check_precommit_available(self) -> bool:
         """Check if pre-commit is installed and configured.
@@ -92,6 +63,18 @@ class PreCommitValidator:
             current = current.parent
         return None
 
+    def should_validate_file(self, file_path: Path) -> bool:
+        """Check if a file should be validated based on its extension.
+
+        Args:
+            file_path: Path to check
+
+        Returns:
+            True if file should be validated with pre-commit
+        """
+        # Only validate source code files
+        return FileUtils.is_source_code_file(file_path)
+
     async def validate_content(
         self,
         file_path: Path,
@@ -112,6 +95,13 @@ class PreCommitValidator:
                 - modified_content: Content after hook fixes (if any)
         """
         if not self.enabled:
+            return {"valid": True, "errors": [], "modified_content": content}
+
+        # Check if we should validate this file type
+        if not self.should_validate_file(file_path):
+            logger.debug(
+                f"Skipping pre-commit validation for non-source file: {file_path}"
+            )
             return {"valid": True, "errors": [], "modified_content": content}
 
         # Check file size

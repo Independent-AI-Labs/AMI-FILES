@@ -180,6 +180,7 @@ async def read_from_file(
     offset_type: str = "line",
     output_format: str = "raw_utf8",
     file_encoding: str = "utf-8",
+    add_line_numbers: bool | None = None,  # None means auto-detect based on file type
 ) -> dict[str, Any]:
     """Read content from a file.
 
@@ -191,6 +192,7 @@ async def read_from_file(
         offset_type: Type of offset (line, char, byte)
         output_format: Output format
         file_encoding: File encoding
+        add_line_numbers: Add line numbers to output (None=auto for source files)
 
     Returns:
         Result with file content
@@ -209,6 +211,11 @@ async def read_from_file(
 
         # Determine if binary
         is_binary = not FileUtils.is_text_file(validated_path)
+
+        # Auto-detect line numbers based on file type if not specified
+        if add_line_numbers is None:
+            # Check if this is a source code file
+            add_line_numbers = FileUtils.is_source_code_file(validated_path)
 
         # Parse enum values
         offset_enum = OffsetType[offset_type.upper()]
@@ -240,7 +247,21 @@ async def read_from_file(
                     else end_offset_inclusive + 1
                 )
                 selected_lines = lines[start_offset_inclusive:end]
-                content = "".join(selected_lines).encode(file_encoding)
+
+                # Add line numbers to content if requested
+                if add_line_numbers:
+                    formatted_lines = []
+                    for i, line in enumerate(selected_lines):
+                        line_num = (
+                            start_offset_inclusive + i + 1
+                        )  # 1-based line numbering
+                        # Remove trailing newline for formatting, will add back
+                        line_content = line.rstrip("\n")
+                        formatted_lines.append(f"{line_num:4} | {line_content}")
+
+                    content = "\n".join(formatted_lines).encode(file_encoding)
+                else:
+                    content = "".join(selected_lines).encode(file_encoding)
             else:  # CHAR
                 full_text = "".join(lines)
                 end = (
@@ -331,8 +352,14 @@ async def write_to_file(
             )
 
             if not validation_result["valid"]:
+                # Format detailed error message with full pre-commit output
+                error_details = (
+                    "\n".join(validation_result["errors"])
+                    if validation_result["errors"]
+                    else "Pre-commit hooks failed"
+                )
                 return {
-                    "error": "Pre-commit validation failed",
+                    "error": f"Pre-commit validation failed:\n{error_details}",
                     "validation_errors": validation_result["errors"],
                 }
 
@@ -482,8 +509,14 @@ async def modify_file(
                 )
 
                 if not validation_result["valid"]:
+                    # Format detailed error message with full pre-commit output
+                    error_details = (
+                        "\n".join(validation_result["errors"])
+                        if validation_result["errors"]
+                        else "Pre-commit hooks failed"
+                    )
                     return {
-                        "error": "Pre-commit validation failed",
+                        "error": f"Pre-commit validation failed:\n{error_details}",
                         "validation_errors": validation_result["errors"],
                     }
 
@@ -534,8 +567,14 @@ async def modify_file(
                 )
 
                 if not validation_result["valid"]:
+                    # Format detailed error message with full pre-commit output
+                    error_details = (
+                        "\n".join(validation_result["errors"])
+                        if validation_result["errors"]
+                        else "Pre-commit hooks failed"
+                    )
                     return {
-                        "error": "Pre-commit validation failed",
+                        "error": f"Pre-commit validation failed:\n{error_details}",
                         "validation_errors": validation_result["errors"],
                     }
 

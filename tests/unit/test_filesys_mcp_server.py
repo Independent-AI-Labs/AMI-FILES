@@ -174,6 +174,58 @@ class TestFilesysMCPServer:
         assert len(result["matches"]) == 2
 
     @pytest.mark.asyncio
+    async def test_read_file_with_line_numbers(self, server, temp_dir):
+        """Test reading source code files with automatic line numbers."""
+        # Create a Python file (should get line numbers automatically)
+        python_content = "def hello():\n    print('Hello')\n\nhello()"
+        (temp_dir / "test.py").write_text(python_content)
+
+        # Read Python file - should have line numbers
+        result = await server.execute_tool("read_from_file", {"path": "test.py"})
+        assert "content" in result
+        # Check for line numbers format
+        assert "   1 |" in result["content"] or "1 |" in result["content"]
+
+        # Create a text file (should not get line numbers by default)
+        (temp_dir / "notes.txt").write_text("Just some notes")
+
+        # Read text file - no line numbers
+        result = await server.execute_tool("read_from_file", {"path": "notes.txt"})
+        assert "content" in result
+        assert "   1 |" not in result["content"]
+
+        # Explicitly request line numbers for text file
+        result = await server.execute_tool(
+            "read_from_file", {"path": "notes.txt", "add_line_numbers": True}
+        )
+        assert "content" in result
+        assert "   1 |" in result["content"] or "1 |" in result["content"]
+
+    @pytest.mark.asyncio
+    async def test_yaml_response_format(self):
+        """Test server with YAML response format configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_dir = Path(tmpdir)
+
+            # Create server with YAML format
+            yaml_server = FilesysMCPServer(
+                root_dir=str(temp_dir), config={"response_format": "yaml"}
+            )
+
+            # Write a test file
+            (temp_dir / "test.py").write_text("print('test')")
+
+            # Read file and check response format
+            result = await yaml_server.execute_tool(
+                "read_from_file", {"path": "test.py"}
+            )
+
+            # Should still be a dict but formatted for YAML output
+            assert isinstance(result, dict)
+            assert "content" in result
+            assert "path" in result
+
+    @pytest.mark.asyncio
     async def test_execute_tool_modify_file(self, server, temp_dir):
         """Test modifying a file."""
         # Create initial file

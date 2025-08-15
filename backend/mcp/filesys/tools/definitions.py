@@ -144,6 +144,10 @@ def register_all_tools(registry: ToolRegistry) -> None:
                     "default": "utf-8",
                     "description": "Text encoding for reading text files.",
                 },
+                "add_line_numbers": {
+                    "type": "boolean",
+                    "description": "Add line numbers to output (default: auto-detect for source files).",
+                },
             },
             "required": ["path"],
         },

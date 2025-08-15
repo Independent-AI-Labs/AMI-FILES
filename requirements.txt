@@ -1,3 +1,4 @@
 # FILES module specific requirements
 pyahocorasick==2.2.0
 regex==2025.7.34
+PyYAML==6.0.2
