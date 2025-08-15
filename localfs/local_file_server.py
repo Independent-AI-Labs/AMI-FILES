@@ -105,7 +105,7 @@ class LocalFiles:
                             }
         except FileNotFoundError:
             self.logger.error(f"file_types.csv not found at {file_types_path}")
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error(f"Error loading file_types.csv: {e}")
         return file_types
 
@@ -120,7 +120,7 @@ class LocalFiles:
                 response.get("id", "unknown"),
                 response_str,
             )
-        except Exception as e:
+        except (OSError, IOError, TypeError, ValueError) as e:
             self.logger.error("Failed to send response: %s", e)
 
     def _send_error(self, message, request_id=None, code=-32602, stdout=None):
@@ -195,7 +195,7 @@ class LocalFiles:
                 f"Validation command not found: {validation_command_str}"
             )
             return True, f"Validation command not found: {validation_command_str}"
-        except Exception as e:
+        except (OSError, IOError, RuntimeError) as e:
             self.logger.error(
                 f"An unexpected error occurred during validation for {file_path}: {e}",
                 exc_info=True,
@@ -285,7 +285,7 @@ class LocalFiles:
             self.logger.info("Returning content as string.")
             return content  # This handles str content for QP or Base64
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to read file %s: %s (Type: %s)", path, e, type(e))
             raise e
 
@@ -356,7 +356,7 @@ class LocalFiles:
                         original_content = read_content
                     else:
                         original_content = read_content
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except (OSError, IOError, ValueError, RuntimeError) as e:
                     self.logger.warning("Could not read existing file for diff: %s", e)
 
             # Create a temporary file to write content to and validate within the root_dir
@@ -391,7 +391,7 @@ class LocalFiles:
                 # Clean up the temporary file
                 tmp_file_path.unlink(missing_ok=True)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to write file %s: %s", path, e)
             raise e
 
@@ -407,7 +407,7 @@ class LocalFiles:
             return FileUtils.list_directory_contents(
                 path, self.root_dir, limit, recursive
             )
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to list directory %s: %s", path, e)
             raise e
 
@@ -417,7 +417,7 @@ class LocalFiles:
             self.logger.info("Creating directory: %s", path)
             result = FileUtils.create_dirs(path, self.root_dir)
             return result["message"]
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to create directory %s: %s", path, e)
             raise e
 
@@ -448,7 +448,7 @@ class LocalFiles:
                 kewords_file_content,
                 regex_keywords,
             )
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to find paths in %s: %s", path, e)
             raise e
 
@@ -458,7 +458,7 @@ class LocalFiles:
             self.logger.info("Deleting paths: %s", paths)
             result = FileUtils.delete_paths(paths, self.root_dir)
             return result["message"]
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error("Failed to delete paths %s: %s", paths, e)
             raise e
 
@@ -501,7 +501,7 @@ class LocalFiles:
                         output_format=OutputFormat.RAW_UTF8,
                     )
                     self.logger.info(f"Original content type: {type(original_content)}")
-                except Exception as e:
+                except (OSError, IOError, ValueError) as e:
                     self.logger.warning(
                         f"Could not read original file content for modification: {e}"
                     )
@@ -573,7 +573,7 @@ class LocalFiles:
             )
             # Re-raise as MCPError for consistency with client expectations
             raise MCPError(f"Path outside root directory: {e}") from e
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             self.logger.error(
                 "Failed to modify file %s: %s (Type: %s)", path, e, type(e)
             )
@@ -617,7 +617,7 @@ class LocalFiles:
                         )
                     else:
                         original_content = read_content
-                except Exception as e:
+                except (OSError, IOError, ValueError) as e:
                     logging.warning(
                         f"Could not read original file content for replacement: {e}"
                     )
@@ -680,7 +680,7 @@ class LocalFiles:
                 # Clean up the temporary file
                 tmp_file_path.unlink(missing_ok=True)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, IOError, ValueError, RuntimeError) as e:
             logging.error("Failed to replace content in file %s: %s", path, e)
             raise e
 
@@ -745,7 +745,14 @@ class LocalFiles:
                     "id": request_id,
                 }
                 self._send_response(response, stdout)
-            except Exception as e:
+            except (
+                ValueError,
+                PermissionError,
+                FileNotFoundError,
+                OSError,
+                IOError,
+                RuntimeError,
+            ) as e:
                 self.logger.error(
                     "Tool execution failed for %s: %s", tool_name, e, exc_info=True
                 )
@@ -814,11 +821,11 @@ class LocalFiles:
                 self.logger.info("Server interrupted.")
                 self._running = False
                 break
-            except Exception as e:
+            except (OSError, IOError, ValueError, RuntimeError) as e:
                 self.logger.error("Unexpected server error: %s", e, exc_info=True)
                 try:
                     self._send_error(f"Internal server error: {e}", stdout=stdout)
-                except Exception as send_error:
+                except (OSError, IOError) as send_error:
                     self.logger.error("Failed to send error response: %s", send_error)
         self.logger.info("MCP File Manipulation Server has shut down.")
 
@@ -836,6 +843,6 @@ if __name__ == "__main__":
     try:
         server = LocalFiles(args.root_dir)
         server.run()
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except (OSError, IOError, ValueError, RuntimeError) as e:
         logging.error("Failed to start server: %s", e, exc_info=True)
         sys.exit(1)
