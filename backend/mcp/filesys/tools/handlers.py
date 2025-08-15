@@ -257,7 +257,7 @@ async def read_from_file(
                         )  # 1-based line numbering
                         # Remove trailing newline for formatting, will add back
                         line_content = line.rstrip("\n")
-                        formatted_lines.append(f"{line_num} | {line_content}")
+                        formatted_lines.append(f"{line_num}|{line_content}")
 
                     content = "\n".join(formatted_lines).encode(file_encoding)
                 else:
