@@ -186,8 +186,8 @@ class TestFilesysMCPServer:
         # Read Python file - should have line numbers
         result = await server.execute_tool("read_from_file", {"path": "test.py"})
         assert "content" in result
-        # Check for line numbers format
-        assert "   1 |" in result["content"] or "1 |" in result["content"]
+        # Check for line numbers format (no leading spaces)
+        assert "1 |" in result["content"]
 
         # Create a text file (should not get line numbers by default)
         (temp_dir / "notes.txt").write_text("Just some notes")
@@ -195,14 +195,14 @@ class TestFilesysMCPServer:
         # Read text file - no line numbers
         result = await server.execute_tool("read_from_file", {"path": "notes.txt"})
         assert "content" in result
-        assert "   1 |" not in result["content"]
+        assert "1 |" not in result["content"]
 
         # Explicitly request line numbers for text file
         result = await server.execute_tool(
             "read_from_file", {"path": "notes.txt", "add_line_numbers": True}
         )
         assert "content" in result
-        assert "   1 |" in result["content"] or "1 |" in result["content"]
+        assert "1 |" in result["content"]
 
     @pytest.mark.asyncio
     async def test_yaml_response_format(self):
