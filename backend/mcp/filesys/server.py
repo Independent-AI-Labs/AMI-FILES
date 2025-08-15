@@ -30,7 +30,7 @@ class FilesysMCPServer(BaseMCPServer):
         """
         self.root_dir = Path(root_dir) if root_dir else Path.cwd()
         self.response_format = (
-            config.get("response_format", "json") if config else "json"
+            config.get("response_format", "yaml") if config else "yaml"
         )
 
         # Ensure root directory exists and is absolute
