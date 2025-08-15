@@ -5,6 +5,18 @@ from typing import Any
 
 from loguru import logger
 
+from .git_handlers import (
+    git_commit,
+    git_diff,
+    git_fetch,
+    git_history,
+    git_merge_abort,
+    git_pull,
+    git_push,
+    git_restore,
+    git_stage,
+    git_unstage,
+)
 from .handlers import (
     create_dirs,
     delete_paths,
@@ -30,6 +42,7 @@ class ToolExecutor:
 
         # Map tool names to handlers
         self.handlers = {
+            # Filesystem tools
             "list_dir": list_dir,
             "create_dirs": create_dirs,
             "find_paths": find_paths,
@@ -38,6 +51,17 @@ class ToolExecutor:
             "delete_paths": delete_paths,
             "modify_file": modify_file,
             "replace_in_file": replace_in_file,
+            # Git tools
+            "git_stage": git_stage,
+            "git_unstage": git_unstage,
+            "git_commit": git_commit,
+            "git_diff": git_diff,
+            "git_history": git_history,
+            "git_restore": git_restore,
+            "git_fetch": git_fetch,
+            "git_pull": git_pull,
+            "git_push": git_push,
+            "git_merge_abort": git_merge_abort,
         }
 
     async def execute(

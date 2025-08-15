@@ -1,5 +1,17 @@
 """Tool definitions for filesystem MCP server."""
 
+from .git_handlers import (
+    git_commit,
+    git_diff,
+    git_fetch,
+    git_history,
+    git_merge_abort,
+    git_pull,
+    git_push,
+    git_restore,
+    git_stage,
+    git_unstage,
+)
 from .handlers import (
     create_dirs,
     delete_paths,
@@ -297,3 +309,29 @@ def register_all_tools(registry: ToolRegistry) -> None:
             "required": ["path", "old_content", "new_content"],
         },
     )
+
+    # Register git tools
+    from .git_definitions import get_git_tools
+
+    for tool_def in get_git_tools():
+        handler_map = {
+            "git_stage": git_stage,
+            "git_unstage": git_unstage,
+            "git_commit": git_commit,
+            "git_diff": git_diff,
+            "git_history": git_history,
+            "git_restore": git_restore,
+            "git_fetch": git_fetch,
+            "git_pull": git_pull,
+            "git_push": git_push,
+            "git_merge_abort": git_merge_abort,
+        }
+
+        handler = handler_map.get(tool_def["name"])
+        if handler:
+            registry.register(
+                name=tool_def["name"],
+                description=tool_def["description"],
+                handler=handler,  # type: ignore[arg-type]
+                parameters=tool_def["inputSchema"],
+            )
