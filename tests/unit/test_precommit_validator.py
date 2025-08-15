@@ -1,6 +1,5 @@
 """Tests for pre-commit validation."""
 
-import json
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,42 +12,31 @@ from backend.mcp.filesys.precommit_validator import PreCommitValidator
 class TestPreCommitValidator:
     """Test PreCommitValidator functionality."""
 
-    @pytest.fixture
-    def config_file(self):
-        """Create a temporary config file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            config = {
-                "enabled": True,
-                "file_extensions": {
-                    "python": {"extensions": [".py"], "hooks": ["ruff", "mypy"]}
-                },
-                "skip_on_missing_hook": True,
-                "max_file_size_kb": 100,
-            }
-            json.dump(config, f)
-            config_path = Path(f.name)
-
-        yield config_path
-        config_path.unlink()
-
-    def test_load_config(self, config_file):
-        """Test loading configuration from file."""
-        validator = PreCommitValidator(config_file)
+    def test_validator_initialization(self):
+        """Test validator initialization with defaults."""
+        validator = PreCommitValidator()
 
         assert validator.enabled is True
-        assert validator.max_file_size_kb == 100
-        assert "python" in validator.file_extensions
+        assert validator.max_file_size_kb == 1024
+        assert validator.skip_on_missing is True
 
-    def test_load_missing_config(self):
-        """Test handling missing config file."""
-        validator = PreCommitValidator(Path("nonexistent.json"))
+    def test_validator_configuration(self):
+        """Test configuring validator after initialization."""
+        validator = PreCommitValidator()
+
+        # Test changing configuration
+        validator.enabled = False
+        validator.max_file_size_kb = 100
+        validator.skip_on_missing = False
 
         assert validator.enabled is False
+        assert validator.max_file_size_kb == 100
+        assert validator.skip_on_missing is False
 
     @pytest.mark.asyncio
-    async def test_validate_disabled(self, config_file):
+    async def test_validate_disabled(self):
         """Test validation when disabled."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
         validator.enabled = False
 
         result = await validator.validate_content(
@@ -61,9 +49,9 @@ class TestPreCommitValidator:
         assert result["modified_content"] == "print('hello')"
 
     @pytest.mark.asyncio
-    async def test_validate_file_too_large(self, config_file):
+    async def test_validate_file_too_large(self):
         """Test validation of files exceeding size limit."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
         validator.max_file_size_kb = 0.001  # 1 byte
 
         result = await validator.validate_content(
@@ -76,9 +64,9 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_precommit_success(self, mock_run, config_file):
+    async def test_validate_with_precommit_success(self, mock_run):
         """Test successful validation with pre-commit."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
 
         # Mock pre-commit check
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -101,9 +89,9 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_precommit_failure(self, mock_run, config_file):
+    async def test_validate_with_precommit_failure(self, mock_run):
         """Test validation failure with pre-commit."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
 
         # Mock pre-commit check with failure
         mock_run.return_value = MagicMock(
@@ -128,9 +116,9 @@ class TestPreCommitValidator:
             assert "Line too long" in result["errors"][0]
 
     @pytest.mark.asyncio
-    async def test_validate_no_precommit_skip(self, config_file):
+    async def test_validate_no_precommit_skip(self):
         """Test skipping validation when pre-commit is not available."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
         validator.skip_on_missing = True
 
         with patch.object(validator, "_check_precommit_available", return_value=False):
@@ -143,9 +131,9 @@ class TestPreCommitValidator:
             assert result["errors"] == []
 
     @pytest.mark.asyncio
-    async def test_validate_no_precommit_fail(self, config_file):
+    async def test_validate_no_precommit_fail(self):
         """Test failing validation when pre-commit is not available and not skipping."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
         validator.skip_on_missing = False
 
         with patch.object(validator, "_check_precommit_available", return_value=False):
@@ -158,9 +146,9 @@ class TestPreCommitValidator:
             assert "Pre-commit is not installed" in result["errors"][0]
 
     @pytest.mark.asyncio
-    async def test_validate_not_in_git_repo(self, config_file):
+    async def test_validate_not_in_git_repo(self):
         """Test validation when not in a git repository."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
 
         with (
             patch.object(validator, "_check_precommit_available", return_value=True),
@@ -176,9 +164,9 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_auto_fix(self, mock_run, config_file):
+    async def test_validate_with_auto_fix(self, mock_run):
         """Test validation with automatic fixes applied by pre-commit."""
-        validator = PreCommitValidator(config_file)
+        validator = PreCommitValidator()
 
         # First run fails, second run succeeds (after fixes)
         mock_run.side_effect = [
