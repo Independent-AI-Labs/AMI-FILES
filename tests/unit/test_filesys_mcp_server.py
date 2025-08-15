@@ -29,6 +29,7 @@ class TestFilesysMCPServer:
         assert len(server.tools) > 0
         assert server.registry is not None
         assert server.executor is not None
+        assert server.response_format == "yaml"  # Default should be YAML
 
     def test_server_initialization_invalid_root(self):
         """Test server initialization with invalid root directory."""
