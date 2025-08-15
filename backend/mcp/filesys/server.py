@@ -29,9 +29,6 @@ class FilesysMCPServer(BaseMCPServer):
             config: Server configuration (including response_format: 'json' or 'yaml')
         """
         self.root_dir = Path(root_dir) if root_dir else Path.cwd()
-        self.response_format = (
-            config.get("response_format", "yaml") if config else "yaml"
-        )
 
         # Ensure root directory exists and is absolute
         try:
@@ -76,30 +73,7 @@ class FilesysMCPServer(BaseMCPServer):
             arguments: Tool arguments
 
         Returns:
-            Tool execution result (formatted as JSON or YAML based on config)
+            Tool execution result
         """
         # Execute using the tool executor
-        result = await self.executor.execute(tool_name, arguments)
-
-        # Format response based on configuration
-        if self.response_format == "yaml" and not result.get("error"):
-            # Convert result to YAML format for better readability
-            try:
-                # For certain tools, format the output specially
-                if tool_name == "read_from_file" and "content" in result:
-                    # Keep content as-is for readability
-                    yaml_result = {
-                        "path": result.get("path"),
-                        "encoding": result.get("encoding"),
-                        "format": result.get("format"),
-                        "content": result.get("content"),  # Content with line numbers
-                    }
-                    return yaml_result
-
-                # For other tools, just return as-is (will be serialized by transport)
-                return result
-            except Exception as e:
-                logger.warning(f"Failed to format as YAML: {e}, returning JSON")
-                return result
-
-        return result
+        return await self.executor.execute(tool_name, arguments)

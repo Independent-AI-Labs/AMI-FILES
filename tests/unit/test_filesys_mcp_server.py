@@ -29,6 +29,8 @@ class TestFilesysMCPServer:
         assert len(server.tools) > 0
         assert server.registry is not None
         assert server.executor is not None
+        # Response format is now handled in base class
+        assert hasattr(server, "response_format")  # Should inherit from base
         assert server.response_format == "yaml"  # Default should be YAML
 
     def test_server_initialization_invalid_root(self):
