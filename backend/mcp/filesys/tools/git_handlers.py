@@ -6,10 +6,132 @@ from typing import Any
 
 from loguru import logger
 
+from backend.mcp.filesys.file_utils import FileUtils
+
+
+def _get_repo_dir(root_dir: Path, repo_path: str | None = None) -> Path:
+    """Get the repository directory.
+
+    Args:
+        root_dir: Root directory for operations
+        repo_path: Optional repository path relative to root_dir
+
+    Returns:
+        Path to repository directory
+    """
+    if repo_path:
+        # Validate the repo path is within root_dir
+        repo_dir = FileUtils.validate_file_path(repo_path, root_dir)
+        if not repo_dir.exists():
+            raise ValueError(f"Repository path does not exist: {repo_path}")
+        return repo_dir
+    return root_dir
+
+
+async def git_status(
+    root_dir: Path,
+    repo_path: str | None = None,
+    short: bool = False,
+    branch: bool = True,
+    untracked: bool = True,
+) -> dict[str, Any]:
+    """Get the status of the git repository.
+
+    Args:
+        root_dir: Root directory for operations
+        repo_path: Git repository path relative to root_dir
+        short: Use short format
+        branch: Show branch information
+        untracked: Show untracked files
+
+    Returns:
+        Result with git status
+    """
+    try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
+        # Build git status command
+        cmd = ["git", "status"]
+
+        if short:
+            cmd.append("--short")
+        if branch and short:
+            cmd.append("--branch")
+        if not untracked:
+            cmd.append("--untracked-files=no")
+
+        # Execute command
+        result = subprocess.run(
+            cmd,
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            return {"error": f"Failed to get status: {result.stderr}"}
+
+        # Parse status if using short format
+        status_info: dict[str, Any] = {
+            "staged": [],
+            "modified": [],
+            "untracked": [],
+            "deleted": [],
+            "renamed": [],
+            "branch": None,
+            "ahead": 0,
+            "behind": 0,
+        }
+
+        if short:
+            lines = result.stdout.splitlines()
+            for line in lines:
+                if line.startswith("##"):
+                    # Branch info
+                    status_info["branch"] = line[3:].split("...")[0]
+                    if "[ahead" in line:
+                        ahead_str = line.split("[ahead ")[1].split("]")[0].split(",")[0]
+                        status_info["ahead"] = int(ahead_str)
+                    if "behind" in line:
+                        behind_str = line.split("behind ")[1].split("]")[0]
+                        status_info["behind"] = int(behind_str)
+                elif len(line) > 2:
+                    status_code = line[:2]
+                    file_path = line[3:].strip()
+
+                    # Parse status codes
+                    if status_code[0] in "AM":
+                        status_info["staged"].append(file_path)
+                    if status_code[1] == "M" or (
+                        status_code[0] == "M" and status_code[1] == " "
+                    ):
+                        status_info["modified"].append(file_path)
+                    if status_code == "??":
+                        status_info["untracked"].append(file_path)
+                    if status_code[0] == "D" or status_code[1] == "D":
+                        status_info["deleted"].append(file_path)
+                    if status_code[0] == "R":
+                        status_info["renamed"].append(file_path)
+
+        return {
+            "result": {
+                "message": "Status retrieved successfully",
+                "output": result.stdout,
+                "status": status_info if short else None,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
+            }
+        }
+
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
+        logger.error(f"Failed to get git status: {e}")
+        return {"error": str(e)}
+
 
 async def git_stage(
     root_dir: Path,
     paths: list[str],
+    repo_path: str | None = None,
     force: bool = False,
     update: bool = False,
 ) -> dict[str, Any]:
@@ -18,6 +140,7 @@ async def git_stage(
     Args:
         root_dir: Root directory for operations
         paths: File paths to stage
+        repo_path: Git repository path relative to root_dir
         force: Force add ignored files
         update: Only update tracked files
 
@@ -25,6 +148,8 @@ async def git_stage(
         Result with staging status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git add command
         cmd = ["git", "add"]
 
@@ -42,7 +167,7 @@ async def git_stage(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -54,7 +179,7 @@ async def git_stage(
         # Get status to show what was staged
         status_result = subprocess.run(
             ["git", "status", "--short"],
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
         )
@@ -69,25 +194,33 @@ async def git_stage(
                 "message": f"Successfully staged {len(staged_files)} file(s)",
                 "staged_files": staged_files,
                 "paths": paths,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to stage files: {e}")
         return {"error": str(e)}
 
 
-async def git_unstage(root_dir: Path, paths: list[str]) -> dict[str, Any]:
+async def git_unstage(
+    root_dir: Path,
+    paths: list[str],
+    repo_path: str | None = None,
+) -> dict[str, Any]:
     """Unstage files from staging area.
 
     Args:
         root_dir: Root directory for operations
         paths: File paths to unstage (empty for all)
+        repo_path: Git repository path relative to root_dir
 
     Returns:
         Result with unstaging status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git reset command
         cmd = ["git", "reset", "HEAD"]
 
@@ -97,7 +230,7 @@ async def git_unstage(root_dir: Path, paths: list[str]) -> dict[str, Any]:
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -111,10 +244,11 @@ async def git_unstage(root_dir: Path, paths: list[str]) -> dict[str, Any]:
                 "message": "Successfully unstaged files",
                 "paths": paths if paths else ["all"],
                 "output": result.stdout,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to unstage files: {e}")
         return {"error": str(e)}
 
@@ -122,6 +256,7 @@ async def git_unstage(root_dir: Path, paths: list[str]) -> dict[str, Any]:
 async def git_commit(
     root_dir: Path,
     message: str,
+    repo_path: str | None = None,
     amend: bool = False,
     allow_empty: bool = False,
     author: str | None = None,
@@ -131,6 +266,7 @@ async def git_commit(
     Args:
         root_dir: Root directory for operations
         message: Commit message
+        repo_path: Git repository path relative to root_dir
         amend: Amend the last commit
         allow_empty: Allow empty commits
         author: Override author
@@ -139,6 +275,8 @@ async def git_commit(
         Result with commit status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git commit command
         cmd = ["git", "commit", "-m", message]
 
@@ -152,7 +290,7 @@ async def git_commit(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -164,6 +302,9 @@ async def git_commit(
                     "result": {
                         "message": "Nothing to commit, working tree clean",
                         "output": result.stdout,
+                        "repo_path": str(repo_dir.relative_to(root_dir))
+                        if repo_path
+                        else ".",
                     }
                 }
             return {"error": f"Failed to commit: {result.stderr or result.stdout}"}
@@ -182,10 +323,11 @@ async def git_commit(
                 "message": "Successfully created commit",
                 "commit_hash": commit_hash,
                 "output": result.stdout,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to create commit: {e}")
         return {"error": str(e)}
 
@@ -193,6 +335,7 @@ async def git_commit(
 async def git_diff(
     root_dir: Path,
     paths: list[str] | None = None,
+    repo_path: str | None = None,
     staged: bool = False,
     name_only: bool = False,
     stat: bool = False,
@@ -203,6 +346,7 @@ async def git_diff(
     Args:
         root_dir: Root directory for operations
         paths: Specific paths to diff
+        repo_path: Git repository path relative to root_dir
         staged: Show staged changes
         name_only: Show only file names
         stat: Show diffstat
@@ -212,6 +356,8 @@ async def git_diff(
         Result with diff output
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git diff command
         cmd = ["git", "diff"]
 
@@ -231,7 +377,7 @@ async def git_diff(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -245,6 +391,9 @@ async def git_diff(
                 "result": {
                     "message": "No differences found",
                     "diff": "",
+                    "repo_path": str(repo_dir.relative_to(root_dir))
+                    if repo_path
+                    else ".",
                 }
             }
 
@@ -253,10 +402,11 @@ async def git_diff(
                 "message": "Diff generated successfully",
                 "diff": result.stdout,
                 "type": "staged" if staged else "working",
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to get diff: {e}")
         return {"error": str(e)}
 
@@ -264,6 +414,7 @@ async def git_diff(
 async def git_history(
     root_dir: Path,
     limit: int = 20,
+    repo_path: str | None = None,
     oneline: bool = True,
     paths: list[str] | None = None,
     author: str | None = None,
@@ -276,6 +427,7 @@ async def git_history(
     Args:
         root_dir: Root directory for operations
         limit: Maximum number of commits
+        repo_path: Git repository path relative to root_dir
         oneline: Show in compact format
         paths: Show history for specific paths
         author: Filter by author
@@ -287,6 +439,8 @@ async def git_history(
         Result with commit history
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git log command
         cmd = ["git", "log", f"-{limit}"]
 
@@ -312,7 +466,7 @@ async def git_history(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -324,6 +478,9 @@ async def git_history(
                     "result": {
                         "message": "No commits found",
                         "commits": [],
+                        "repo_path": str(repo_dir.relative_to(root_dir))
+                        if repo_path
+                        else ".",
                     }
                 }
             return {"error": f"Failed to get history: {result.stderr}"}
@@ -360,10 +517,11 @@ async def git_history(
                 "message": f"Found {len(commits)} commit(s)",
                 "commits": commits,
                 "limit": limit,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to get history: {e}")
         return {"error": str(e)}
 
@@ -371,6 +529,7 @@ async def git_history(
 async def git_restore(
     root_dir: Path,
     paths: list[str],
+    repo_path: str | None = None,
     staged: bool = False,
     source: str | None = None,
 ) -> dict[str, Any]:
@@ -379,6 +538,7 @@ async def git_restore(
     Args:
         root_dir: Root directory for operations
         paths: File paths to restore
+        repo_path: Git repository path relative to root_dir
         staged: Restore from staging area
         source: Restore from specific commit/branch
 
@@ -386,6 +546,8 @@ async def git_restore(
         Result with restore status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         if not paths:
             return {"error": "No paths specified to restore"}
 
@@ -403,7 +565,7 @@ async def git_restore(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -419,7 +581,7 @@ async def git_restore(
 
             result = subprocess.run(
                 cmd,
-                cwd=root_dir,
+                cwd=repo_dir,
                 capture_output=True,
                 text=True,
                 check=False,
@@ -433,10 +595,11 @@ async def git_restore(
                 "message": f"Successfully restored {len(paths)} file(s)",
                 "paths": paths,
                 "source": source or "HEAD",
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to restore files: {e}")
         return {"error": str(e)}
 
@@ -444,6 +607,7 @@ async def git_restore(
 async def git_fetch(
     root_dir: Path,
     remote: str = "origin",
+    repo_path: str | None = None,
     branch: str | None = None,
     all: bool = False,
     prune: bool = False,
@@ -454,6 +618,7 @@ async def git_fetch(
     Args:
         root_dir: Root directory for operations
         remote: Remote name
+        repo_path: Git repository path relative to root_dir
         branch: Specific branch to fetch
         all: Fetch all remotes
         prune: Prune deleted remote branches
@@ -463,6 +628,8 @@ async def git_fetch(
         Result with fetch status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git fetch command
         cmd = ["git", "fetch"]
 
@@ -483,7 +650,7 @@ async def git_fetch(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -504,10 +671,11 @@ async def git_fetch(
                 "remote": "all" if all else remote,
                 "updates": updates,
                 "output": result.stderr or "Already up to date",
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to fetch: {e}")
         return {"error": str(e)}
 
@@ -515,6 +683,7 @@ async def git_fetch(
 async def git_pull(
     root_dir: Path,
     remote: str = "origin",
+    repo_path: str | None = None,
     branch: str | None = None,
     rebase: bool = False,
     ff_only: bool = False,
@@ -525,6 +694,7 @@ async def git_pull(
     Args:
         root_dir: Root directory for operations
         remote: Remote name
+        repo_path: Git repository path relative to root_dir
         branch: Branch to pull from
         rebase: Use rebase instead of merge
         ff_only: Only fast-forward merge
@@ -534,6 +704,8 @@ async def git_pull(
         Result with pull status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git pull command
         cmd = ["git", "pull"]
 
@@ -551,7 +723,7 @@ async def git_pull(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -593,28 +765,35 @@ async def git_pull(
                 "insertions": insertions,
                 "deletions": deletions,
                 "output": result.stdout,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to pull: {e}")
         return {"error": str(e)}
 
 
-async def git_merge_abort(root_dir: Path) -> dict[str, Any]:
+async def git_merge_abort(
+    root_dir: Path,
+    repo_path: str | None = None,
+) -> dict[str, Any]:
     """Abort an ongoing merge operation.
 
     Args:
         root_dir: Root directory for operations
+        repo_path: Git repository path relative to root_dir
 
     Returns:
         Result with abort status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Execute git merge --abort
         result = subprocess.run(
             ["git", "merge", "--abort"],
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -626,6 +805,9 @@ async def git_merge_abort(root_dir: Path) -> dict[str, Any]:
                     "result": {
                         "message": "No merge in progress",
                         "status": "clean",
+                        "repo_path": str(repo_dir.relative_to(root_dir))
+                        if repo_path
+                        else ".",
                     }
                 }
             return {"error": f"Failed to abort merge: {result.stderr}"}
@@ -635,10 +817,11 @@ async def git_merge_abort(root_dir: Path) -> dict[str, Any]:
                 "message": "Successfully aborted merge",
                 "status": "aborted",
                 "output": result.stdout or "Merge aborted",
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to abort merge: {e}")
         return {"error": str(e)}
 
@@ -646,6 +829,7 @@ async def git_merge_abort(root_dir: Path) -> dict[str, Any]:
 async def git_push(
     root_dir: Path,
     remote: str = "origin",
+    repo_path: str | None = None,
     branch: str | None = None,
     force: bool = False,
     set_upstream: bool = False,
@@ -657,6 +841,7 @@ async def git_push(
     Args:
         root_dir: Root directory for operations
         remote: Remote name
+        repo_path: Git repository path relative to root_dir
         branch: Branch to push
         force: Force push
         set_upstream: Set upstream tracking branch
@@ -667,6 +852,8 @@ async def git_push(
         Result with push status
     """
     try:
+        repo_dir = _get_repo_dir(root_dir, repo_path)
+
         # Build git push command
         cmd = ["git", "push"]
 
@@ -686,7 +873,7 @@ async def git_push(
         # Execute command
         result = subprocess.run(
             cmd,
-            cwd=root_dir,
+            cwd=repo_dir,
             capture_output=True,
             text=True,
             check=False,
@@ -703,6 +890,9 @@ async def git_push(
                     "remote": remote,
                     "branch": branch or "current",
                     "status": "up-to-date",
+                    "repo_path": str(repo_dir.relative_to(root_dir))
+                    if repo_path
+                    else ".",
                 }
             }
 
@@ -720,9 +910,10 @@ async def git_push(
                 "pushed_refs": pushed_refs,
                 "dry_run": dry_run,
                 "output": result.stderr or result.stdout,
+                "repo_path": str(repo_dir.relative_to(root_dir)) if repo_path else ".",
             }
         }
 
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as e:
         logger.error(f"Failed to push: {e}")
         return {"error": str(e)}

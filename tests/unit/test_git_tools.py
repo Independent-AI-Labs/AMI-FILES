@@ -14,6 +14,7 @@ from backend.mcp.filesys.tools.git_handlers import (
     git_push,
     git_restore,
     git_stage,
+    git_status,
     git_unstage,
 )
 
@@ -22,6 +23,66 @@ from backend.mcp.filesys.tools.git_handlers import (
 def mock_root_dir(tmp_path):
     """Create a mock root directory."""
     return tmp_path
+
+
+class TestGitStatus:
+    """Test git_status handler."""
+
+    @pytest.mark.asyncio
+    async def test_git_status_basic(self, mock_root_dir):
+        """Test basic git status functionality."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="On branch main\nYour branch is up to date\n\nnothing to commit",
+                stderr="",
+            )
+
+            result = await git_status(mock_root_dir)
+
+            assert "result" in result
+            assert "output" in result["result"]
+            assert "main" in result["result"]["output"]
+
+    @pytest.mark.asyncio
+    async def test_git_status_short_format(self, mock_root_dir):
+        """Test git status with short format."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="## main...origin/main [ahead 1]\nM  file1.txt\n?? file2.txt",
+                stderr="",
+            )
+
+            result = await git_status(mock_root_dir, short=True)
+
+            assert "result" in result
+            assert "status" in result["result"]
+            status = result["result"]["status"]
+            assert status["branch"] == "main"
+            assert status["ahead"] == 1
+            assert "file1.txt" in status["modified"]
+            assert "file2.txt" in status["untracked"]
+
+    @pytest.mark.asyncio
+    async def test_git_status_with_repo_path(self, mock_root_dir):
+        """Test git status with repo_path parameter."""
+        # Create a subdirectory to act as repo
+        repo_dir = mock_root_dir / "my_repo"
+        repo_dir.mkdir()
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="On branch main", stderr=""
+            )
+
+            result = await git_status(mock_root_dir, repo_path="my_repo")
+
+            assert "result" in result
+            assert result["result"]["repo_path"] == "my_repo"
+            # Verify subprocess was called with correct cwd
+            mock_run.assert_called_once()
+            assert mock_run.call_args[1]["cwd"] == repo_dir
 
 
 class TestGitStage:
@@ -42,6 +103,26 @@ class TestGitStage:
             assert "result" in result
             assert result["result"]["staged_files"] == ["file1.txt", "file2.txt"]
             assert "Successfully staged 2 file(s)" in result["result"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_stage_with_repo_path(self, mock_root_dir):
+        """Test staging with repo_path parameter."""
+        # Create a subdirectory to act as repo
+        repo_dir = mock_root_dir / "submodule"
+        repo_dir.mkdir()
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                MagicMock(returncode=0, stdout="", stderr=""),
+                MagicMock(returncode=0, stdout="A  file.txt", stderr=""),
+            ]
+
+            result = await git_stage(mock_root_dir, ["file.txt"], repo_path="submodule")
+
+            assert "result" in result
+            assert result["result"]["repo_path"] == "submodule"
+            # First call should be to the correct directory
+            assert mock_run.call_args_list[0][1]["cwd"] == repo_dir
 
     @pytest.mark.asyncio
     async def test_stage_with_force(self, mock_root_dir):
