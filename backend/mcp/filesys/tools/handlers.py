@@ -7,12 +7,14 @@ from typing import Any
 
 from loguru import logger
 
+from backend.mcp.filesys.fast_search import FastFileSearcher
 from backend.mcp.filesys.file_utils import (
     FileUtils,
     InputFormat,
     OffsetType,
     OutputFormat,
 )
+from backend.mcp.filesys.precommit_validator import PreCommitValidator
 
 
 async def list_dir(
@@ -102,8 +104,10 @@ async def find_paths(
     keywords_path_name: list[str] | None = None,
     keywords_file_content: list[str] | None = None,
     regex_keywords: bool = False,
+    use_fast_search: bool = True,
+    max_workers: int = 8,
 ) -> dict[str, Any]:
-    """Find files matching keywords.
+    """Find files matching keywords using fast multithreaded search.
 
     Args:
         root_dir: Root directory for operations
@@ -111,6 +115,8 @@ async def find_paths(
         keywords_path_name: Keywords for path/name matching
         keywords_file_content: Keywords for content matching
         regex_keywords: Whether keywords are regex patterns
+        use_fast_search: Use fast multithreaded search with pyahocorasick
+        max_workers: Number of worker threads for parallel search
 
     Returns:
         Result with matching files
@@ -121,12 +127,27 @@ async def find_paths(
         if not validated_path.is_dir():
             return {"error": f"Path is not a directory: {path}"}
 
-        results = FileUtils.find_files(
-            validated_path,
-            keywords_path_name,
-            keywords_file_content,
-            regex_keywords,
-        )
+        # Use fast search if enabled and we have keywords
+        if use_fast_search and (keywords_path_name or keywords_file_content):
+            searcher = FastFileSearcher(max_workers=max_workers)
+            try:
+                results = await searcher.search_files(
+                    validated_path,
+                    keywords_path_name,
+                    keywords_file_content,
+                    regex_keywords,
+                    max_results=10000,
+                )
+            finally:
+                searcher.close()
+        else:
+            # Fall back to original implementation
+            results = FileUtils.find_files(
+                validated_path,
+                keywords_path_name,
+                keywords_file_content,
+                regex_keywords,
+            )
 
         # Convert absolute paths to relative paths from root_dir
         relative_results = []
@@ -261,8 +282,9 @@ async def write_to_file(
     mode: str = "text",
     input_format: str = "raw_utf8",
     file_encoding: str = "utf-8",
+    validate_with_precommit: bool = True,
 ) -> dict[str, Any]:
-    """Write content to a file.
+    """Write content to a file with optional pre-commit validation.
 
     Args:
         root_dir: Root directory for operations
@@ -271,6 +293,7 @@ async def write_to_file(
         mode: Write mode (text/binary)
         input_format: Input format
         file_encoding: File encoding
+        validate_with_precommit: Run pre-commit hooks before writing
 
     Returns:
         Result with write status
@@ -285,28 +308,63 @@ async def write_to_file(
         input_enum = InputFormat[input_format.replace("-", "_").upper()]
 
         # Decode content if needed
+        write_content: str | bytes
         if mode == "binary":
             if input_enum == InputFormat.RAW_UTF8:
-                write_content_bytes = content.encode("utf-8")
+                write_content = content.encode("utf-8")
             else:
-                write_content_bytes = FileUtils.decode_content(content, input_enum)
-            validated_path.write_bytes(write_content_bytes)
+                write_content = FileUtils.decode_content(content, input_enum)
         else:
             if input_enum != InputFormat.RAW_UTF8:
                 decoded = FileUtils.decode_content(content, input_enum)
-                write_content_str = decoded.decode(file_encoding)
+                write_content = decoded.decode(file_encoding)
             else:
-                write_content_str = content
-            validated_path.write_text(write_content_str, encoding=file_encoding)
+                write_content = content
+
+        # Validate with pre-commit if enabled
+        if validate_with_precommit:
+            validator = PreCommitValidator()
+            validation_result = await validator.validate_content(
+                validated_path,
+                write_content,
+                encoding=file_encoding,
+            )
+
+            if not validation_result["valid"]:
+                return {
+                    "error": "Pre-commit validation failed",
+                    "validation_errors": validation_result["errors"],
+                }
+
+            # Use the potentially modified content from pre-commit
+            write_content = validation_result["modified_content"]
+
+            # Check if content was modified by hooks
+            if write_content != content and validation_result["errors"]:
+                logger.info(f"Pre-commit hooks modified {path}")
+
+        # Write the validated content
+        if mode == "binary":
+            if isinstance(write_content, bytes):
+                validated_path.write_bytes(write_content)
+            else:
+                validated_path.write_bytes(write_content.encode(file_encoding))
+        else:
+            if isinstance(write_content, str):
+                validated_path.write_text(write_content, encoding=file_encoding)
+            else:
+                validated_path.write_text(
+                    write_content.decode(file_encoding), encoding=file_encoding
+                )
 
         return {
             "result": {
                 "message": f"Successfully wrote to {path}",
                 "path": str(path),
                 "bytes_written": len(
-                    write_content_bytes
-                    if mode == "binary"
-                    else write_content_str.encode(file_encoding)
+                    write_content
+                    if isinstance(write_content, bytes)
+                    else write_content.encode(file_encoding)
                 ),
             }
         }
@@ -368,6 +426,7 @@ async def modify_file(
     input_format: str = "raw_utf8",
     file_encoding: str = "utf-8",
     mode: str = "text",
+    validate_with_precommit: bool = True,
 ) -> dict[str, Any]:
     """Modify a file by replacing a range with new content.
 
@@ -381,6 +440,7 @@ async def modify_file(
         input_format: Input format
         file_encoding: File encoding
         mode: File mode
+        validate_with_precommit: Run pre-commit hooks before writing
 
     Returns:
         Result with modification status
@@ -412,6 +472,24 @@ async def modify_file(
                 + new_bytes
                 + original_content[end_offset_inclusive + 1 :]
             )
+            # Validate with pre-commit if enabled
+            if validate_with_precommit:
+                validator = PreCommitValidator()
+                validation_result = await validator.validate_content(
+                    validated_path,
+                    modified,
+                    encoding=file_encoding,
+                )
+
+                if not validation_result["valid"]:
+                    return {
+                        "error": "Pre-commit validation failed",
+                        "validation_errors": validation_result["errors"],
+                    }
+
+                # Use the potentially modified content
+                modified = validation_result["modified_content"]
+
             validated_path.write_bytes(modified)
         else:
             original_text = validated_path.read_text(encoding=file_encoding)
@@ -445,6 +523,24 @@ async def modify_file(
                     + original_bytes[end_offset_inclusive + 1 :]
                 )
                 modified_str = modified_bytes.decode(file_encoding)
+
+            # Validate with pre-commit if enabled
+            if validate_with_precommit:
+                validator = PreCommitValidator()
+                validation_result = await validator.validate_content(
+                    validated_path,
+                    modified_str,
+                    encoding=file_encoding,
+                )
+
+                if not validation_result["valid"]:
+                    return {
+                        "error": "Pre-commit validation failed",
+                        "validation_errors": validation_result["errors"],
+                    }
+
+                # Use the potentially modified content
+                modified_str = validation_result["modified_content"]
 
             validated_path.write_text(modified_str, encoding=file_encoding)
 
