@@ -5,9 +5,32 @@ import asyncio
 import sys
 from pathlib import Path
 
-from loguru import logger
+# Smart path setup - works regardless of where script is run from
+_current_file = Path(__file__).resolve()
+_current_dir = _current_file.parent
 
-from backend.mcp.filesys.server import FilesysMCPServer
+# Find git root by traversing up
+_search_dir = _current_dir
+while _search_dir != _search_dir.parent:
+    if (_search_dir / ".git").exists():
+        # Add git root and base module to path
+        sys.path.insert(0, str(_search_dir))
+        if (_search_dir / "base").exists():
+            sys.path.insert(0, str(_search_dir / "base"))
+        break
+    _search_dir = _search_dir.parent
+
+# Find project root (files directory)
+_project_root = _current_dir
+while _project_root != _project_root.parent:
+    if (_project_root / "backend" / "mcp" / "filesys").exists():
+        sys.path.insert(0, str(_project_root))
+        break
+    _project_root = _project_root.parent
+
+from loguru import logger  # noqa: E402
+
+from backend.mcp.filesys.server import FilesysMCPServer  # noqa: E402
 
 # Configure logging
 logger.remove()  # Remove default handler

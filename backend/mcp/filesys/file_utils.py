@@ -2,6 +2,7 @@
 
 import base64
 import difflib
+import json
 import re
 from enum import Enum
 from pathlib import Path
@@ -39,6 +40,87 @@ class FileUtils:
     """Provides file manipulation utilities."""
 
     max_file_size = 100 * 1024 * 1024  # 100MB limit
+    _source_extensions = None  # Cache for source code extensions
+
+    @classmethod
+    def _load_source_extensions(cls) -> set[str]:
+        """Load source code file extensions from config file.
+
+        Returns:
+            Set of source code file extensions
+        """
+        if cls._source_extensions is not None:
+            return cls._source_extensions
+
+        try:
+            config_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "res"
+                / "file_extensions.json"
+            )
+            with config_path.open() as f:
+                data = json.load(f)
+
+            extensions = set()
+            # Add programming language extensions
+            for lang_exts in data.get("text_files", {}).get("programming", {}).values():
+                extensions.update(lang_exts)
+            # Add web-related extensions (HTML, CSS, JS, etc.)
+            for lang_exts in data.get("text_files", {}).get("web", {}).values():
+                extensions.update(lang_exts)
+
+            cls._source_extensions = extensions
+            return extensions
+        except (OSError, json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to load source extensions config: {e}")
+            # Fall back to common extensions
+            cls._source_extensions = {
+                ".py",
+                ".js",
+                ".ts",
+                ".jsx",
+                ".tsx",
+                ".java",
+                ".cpp",
+                ".c",
+                ".h",
+                ".cs",
+                ".go",
+                ".rs",
+                ".rb",
+                ".php",
+                ".swift",
+                ".kt",
+                ".scala",
+                ".html",
+                ".css",
+                ".scss",
+                ".sass",
+                ".vue",
+                ".yaml",
+                ".yml",
+                ".json",
+                ".xml",
+                ".md",
+                ".sh",
+                ".bash",
+                ".zsh",
+                ".fish",
+            }
+            return cls._source_extensions
+
+    @classmethod
+    def is_source_code_file(cls, file_path: Path) -> bool:
+        """Check if a file is a source code file based on its extension.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            True if file is a source code file
+        """
+        extensions = cls._load_source_extensions()
+        return file_path.suffix.lower() in extensions
 
     @staticmethod
     def is_text_file(file_path: Path) -> bool:
