@@ -97,6 +97,6 @@ class ToolExecutor:
         except TypeError as e:
             logger.error(f"Invalid arguments for tool {tool_name}: {e}")
             return {"error": f"Invalid arguments: {e!s}"}
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Tool {tool_name} execution failed: {e}")
             return {"error": f"Execution failed: {e!s}"}

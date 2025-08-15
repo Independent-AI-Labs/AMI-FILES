@@ -72,7 +72,7 @@ async def git_stage(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to stage files: {e}")
         return {"error": str(e)}
 
@@ -114,7 +114,7 @@ async def git_unstage(root_dir: Path, paths: list[str]) -> dict[str, Any]:
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to unstage files: {e}")
         return {"error": str(e)}
 
@@ -185,7 +185,7 @@ async def git_commit(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to create commit: {e}")
         return {"error": str(e)}
 
@@ -256,7 +256,7 @@ async def git_diff(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to get diff: {e}")
         return {"error": str(e)}
 
@@ -363,7 +363,7 @@ async def git_history(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to get history: {e}")
         return {"error": str(e)}
 
@@ -436,7 +436,7 @@ async def git_restore(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to restore files: {e}")
         return {"error": str(e)}
 
@@ -507,7 +507,7 @@ async def git_fetch(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to fetch: {e}")
         return {"error": str(e)}
 
@@ -596,7 +596,7 @@ async def git_pull(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to pull: {e}")
         return {"error": str(e)}
 
@@ -638,7 +638,7 @@ async def git_merge_abort(root_dir: Path) -> dict[str, Any]:
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to abort merge: {e}")
         return {"error": str(e)}
 
@@ -723,6 +723,6 @@ async def git_push(
             }
         }
 
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         logger.error(f"Failed to push: {e}")
         return {"error": str(e)}
