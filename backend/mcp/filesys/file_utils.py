@@ -70,7 +70,7 @@ class FileUtils:
                     return True
                 except UnicodeDecodeError:
                     return False
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Error checking if file is text: {e}")
             return True  # Default to text if unsure
 
@@ -106,7 +106,7 @@ class FileUtils:
                 )
 
             return resolved_path
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid file path '{file_path}': {e}") from e
 
     @staticmethod
@@ -254,7 +254,7 @@ class FileUtils:
                             content_match = any(
                                 kw in content for kw in content_patterns
                             )
-                    except Exception as e:
+                    except (OSError, UnicodeDecodeError) as e:
                         logger.warning(f"Error reading file {file_path}: {e}")
 
             # Add to results if matched

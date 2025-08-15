@@ -65,7 +65,7 @@ async def list_dir(
             }
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to list directory {path}: {e}")
         return {"error": str(e)}
 
@@ -91,7 +91,7 @@ async def create_dirs(root_dir: Path, path: str) -> dict[str, Any]:
         validated_path.mkdir(parents=True, exist_ok=True)
         return {"result": {"message": f"Directory created: {path}"}}
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to create directory {path}: {e}")
         return {"error": str(e)}
 
@@ -146,7 +146,7 @@ async def find_paths(
             }
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to find paths in {path}: {e}")
         return {"error": str(e)}
 
@@ -249,7 +249,7 @@ async def read_from_file(
             }
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to read file {path}: {e}")
         return {"error": str(e)}
 
@@ -311,7 +311,7 @@ async def write_to_file(
             }
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to write file {path}: {e}")
         return {"error": str(e)}
 
@@ -344,7 +344,7 @@ async def delete_paths(root_dir: Path, paths: list[str]) -> dict[str, Any]:
 
             deleted.append(path)
 
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Failed to delete {path}: {e}")
             errors.append({"path": path, "error": str(e)})
 
@@ -452,7 +452,7 @@ async def modify_file(
             "result": {"message": f"Successfully modified {path}", "path": str(path)}
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to modify file {path}: {e}")
         return {"error": str(e)}
 
@@ -576,6 +576,6 @@ async def replace_in_file(
             }
         }
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error(f"Failed to replace in file {path}: {e}")
         return {"error": str(e)}

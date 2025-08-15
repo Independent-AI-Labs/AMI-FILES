@@ -40,7 +40,7 @@ async def main():
         await server.run_stdio()
     except KeyboardInterrupt:
         logger.info("Server interrupted by user")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error(f"Server error: {e}")
         sys.exit(1)
 
