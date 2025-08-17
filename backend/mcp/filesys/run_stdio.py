@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Run filesystem MCP server with stdio transport."""
 
 import argparse
@@ -5,21 +6,19 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Smart path discovery - find project roots by looking for .git/.venv
+# Bootstrap paths - add base first so we can import smart_path
 current = Path(__file__).resolve().parent
 while current != current.parent:
-    # Found main orchestrator (has base/ and .git)
     if (current / "base").exists() and (current / ".git").exists():
-        sys.path.insert(0, str(current))
         sys.path.insert(0, str(current / "base"))
         break
-    # Found module root (has .venv or .git and backend/)
-    if ((current / ".venv").exists() or (current / ".git").exists()) and (
-        current / "backend"
-    ).exists():
-        if str(current) not in sys.path:
-            sys.path.insert(0, str(current))
     current = current.parent
+
+# Now use the base smart path setup
+from backend.utils.smart_path import auto_setup  # noqa: E402
+
+# Auto setup with venv requirement
+paths = auto_setup(require_venv=True)
 
 from loguru import logger  # noqa: E402
 
