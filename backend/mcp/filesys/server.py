@@ -6,10 +6,20 @@ from typing import Any
 
 from loguru import logger
 
-# Add parent directory to path for base module imports if needed
-_parent_dir = Path(__file__).parent.parent.parent.parent.parent
-if _parent_dir.exists() and str(_parent_dir) not in sys.path:
-    sys.path.insert(0, str(_parent_dir))
+# Smart path discovery - find project roots by looking for .git/.venv
+current = Path(__file__).resolve().parent
+while current != current.parent:
+    # Found main orchestrator (has base/ and .git)
+    if (current / "base").exists() and (current / ".git").exists():
+        sys.path.insert(0, str(current))
+        break
+    # Found module root (has .venv or .git and backend/)
+    if ((current / ".venv").exists() or (current / ".git").exists()) and (
+        current / "backend"
+    ).exists():
+        if str(current) not in sys.path:
+            sys.path.insert(0, str(current))
+    current = current.parent
 
 from base.backend.mcp.mcp_server import BaseMCPServer  # noqa: E402
 

@@ -5,28 +5,21 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Smart path setup - works regardless of where script is run from
-_current_file = Path(__file__).resolve()
-_current_dir = _current_file.parent
-
-# Find git root by traversing up
-_search_dir = _current_dir
-while _search_dir != _search_dir.parent:
-    if (_search_dir / ".git").exists():
-        # Add git root and base module to path
-        sys.path.insert(0, str(_search_dir))
-        if (_search_dir / "base").exists():
-            sys.path.insert(0, str(_search_dir / "base"))
+# Smart path discovery - find project roots by looking for .git/.venv
+current = Path(__file__).resolve().parent
+while current != current.parent:
+    # Found main orchestrator (has base/ and .git)
+    if (current / "base").exists() and (current / ".git").exists():
+        sys.path.insert(0, str(current))
+        sys.path.insert(0, str(current / "base"))
         break
-    _search_dir = _search_dir.parent
-
-# Find project root (files directory)
-_project_root = _current_dir
-while _project_root != _project_root.parent:
-    if (_project_root / "backend" / "mcp" / "filesys").exists():
-        sys.path.insert(0, str(_project_root))
-        break
-    _project_root = _project_root.parent
+    # Found module root (has .venv or .git and backend/)
+    if ((current / ".venv").exists() or (current / ".git").exists()) and (
+        current / "backend"
+    ).exists():
+        if str(current) not in sys.path:
+            sys.path.insert(0, str(current))
+    current = current.parent
 
 from loguru import logger  # noqa: E402
 
