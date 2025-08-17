@@ -4,8 +4,8 @@ import time
 from pathlib import Path
 
 import pytest
-from services.mcp.filesys.fast_search import FastFileSearcher
-from services.mcp.filesys.file_utils import FileUtils
+from files.backend.mcp.filesys.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.file_utils import FileUtils
 
 
 class TestFastSearchIntegration:

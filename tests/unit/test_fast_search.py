@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from services.mcp.filesys.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.fast_search import FastFileSearcher
 
 
 class TestFastFileSearcher:
@@ -190,7 +190,7 @@ class TestFastFileSearcher:
         """Test that fast search is actually faster for large directories."""
         import time
 
-        from services.mcp.filesys.file_utils import FileUtils
+        from files.backend.mcp.filesys.file_utils import FileUtils
 
         # Create more files for performance test
         for i in range(50):
