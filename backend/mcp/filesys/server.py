@@ -22,9 +22,10 @@ while current != current.parent:
     current = current.parent
 
 from base.backend.mcp.mcp_server import BaseMCPServer  # noqa: E402
-from tools.definitions import register_all_tools  # noqa: E402
-from tools.executor import ToolExecutor  # noqa: E402
-from tools.registry import ToolRegistry  # noqa: E402
+
+from .tools.definitions import register_all_tools  # noqa: E402
+from .tools.executor import ToolExecutor  # noqa: E402
+from .tools.registry import ToolRegistry  # noqa: E402
 
 
 class FilesysMCPServer(BaseMCPServer):
