@@ -4,9 +4,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from file_utils import FileUtils
 from loguru import logger
-
-from backend.mcp.filesys.file_utils import FileUtils
 
 
 def _get_repo_dir(root_dir: Path, repo_path: str | None = None) -> Path:
@@ -21,7 +20,7 @@ def _get_repo_dir(root_dir: Path, repo_path: str | None = None) -> Path:
     """
     if repo_path:
         # Validate the repo path is within root_dir
-        repo_dir = FileUtils.validate_file_path(repo_path, root_dir)
+        repo_dir = Path(FileUtils.validate_file_path(repo_path, root_dir))
         if not repo_dir.exists():
             raise ValueError(f"Repository path does not exist: {repo_path}")
         return repo_dir

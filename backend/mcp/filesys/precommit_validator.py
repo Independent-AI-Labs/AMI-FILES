@@ -6,9 +6,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from file_utils import FileUtils
 from loguru import logger
-
-from .file_utils import FileUtils
 
 
 class PreCommitValidator:
@@ -73,7 +72,7 @@ class PreCommitValidator:
             True if file should be validated with pre-commit
         """
         # Only validate source code files
-        return FileUtils.is_source_code_file(file_path)
+        return bool(FileUtils.is_source_code_file(file_path))
 
     async def validate_content(
         self,
