@@ -1,1 +1,1 @@
-"""Filesystem tools for MCP server."""
+# Empty - no imports to avoid circular import hell

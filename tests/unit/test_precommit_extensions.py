@@ -3,9 +3,8 @@
 from pathlib import Path
 
 import pytest
-
-from backend.mcp.filesys.file_utils import FileUtils
-from backend.mcp.filesys.precommit_validator import PreCommitValidator
+from services.mcp.filesys.file_utils import FileUtils
+from services.mcp.filesys.precommit_validator import PreCommitValidator
 
 
 class TestPreCommitExtensions:

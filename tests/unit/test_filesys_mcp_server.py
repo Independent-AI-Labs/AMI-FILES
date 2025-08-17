@@ -4,8 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
-from backend.mcp.filesys.server import FilesysMCPServer
+from services.mcp.filesys.server import FilesysMCPServer
 
 
 class TestFilesysMCPServer:

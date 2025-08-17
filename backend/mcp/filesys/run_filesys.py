@@ -4,45 +4,48 @@
 import sys
 from pathlib import Path
 
-# Bootstrap path discovery - find base WITHOUT hardcoded parent counts
+# Bootstrap path discovery - find ORCHESTRATOR ROOT (parent with base/ submodule)
 current = Path(__file__).resolve().parent
+orchestrator_root = None
 while current != current.parent:
-    if (current / ".git").exists():
-        if (current / "base").exists() and (
-            current / "base" / "backend" / "utils" / "path_finder.py"
-        ).exists():
-            sys.path.insert(0, str(current / "base"))
-            break
-        elif (
-            current.name == "base"
-            and (current / "backend" / "utils" / "path_finder.py").exists()
-        ):
-            sys.path.insert(0, str(current))
-            break
+    if (current / ".git").exists() and (current / "base").exists():
+        # Found the main orchestrator root
+        orchestrator_root = current
+        break
     current = current.parent
 
-# Now we can import the proper path finder
-from backend.utils.path_finder import setup_base_import  # noqa: E402
+if not orchestrator_root:
+    raise RuntimeError("Could not find orchestrator root")
+
+# Add orchestrator root to path FIRST so we can import both base and local modules properly
+sys.path.insert(0, str(orchestrator_root))
+
+# Now import from base using proper namespace
+from base.backend.utils.path_finder import setup_base_import  # noqa: E402
 
 setup_base_import(Path(__file__))
 
-from backend.mcp.run_server import setup_environment  # noqa: E402
+from base.backend.mcp.run_server import setup_environment  # noqa: E402
 
 if __name__ == "__main__":
     # Setup environment first (will re-exec if needed)
     module_root, python = setup_environment(Path(__file__))
 
-    # Add files module root to sys.path for imports
-    sys.path.insert(0, str(module_root))
-    # Also add parent directory for the server.py import
-    sys.path.insert(0, str(Path(__file__).parent))
+    # Ensure module root is FIRST in sys.path
+    module_str = str(module_root)
+    if module_str in sys.path:
+        sys.path.remove(module_str)
+    sys.path.insert(0, module_str)
 
     # NOW import after environment is set up
     import argparse
+    import asyncio
 
-    from server import FilesysMCPServer
+    from base.backend.mcp.run_server import run_stdio, run_websocket
 
-    from backend.mcp.run_server import run_server
+    # Import the filesys server from THIS module (files)
+    # Since orchestrator root is in path, we can use files.backend
+    from files.backend.mcp.filesys.server import FilesysMCPServer
 
     # Parse args
     parser = argparse.ArgumentParser(description="Filesystem MCP Server")
@@ -55,10 +58,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     transport = "websocket" if args.transport in ["websocket", "ws"] else "stdio"
+    server_args = {"root_dir": args.root_dir}
 
-    run_server(
-        server_class=FilesysMCPServer,
-        server_args={"root_dir": args.root_dir},
-        transport=transport,
-        port=8768,  # Files uses 8768
-    )
+    # Run the appropriate transport
+    if transport == "stdio":
+        asyncio.run(run_stdio(FilesysMCPServer, server_args))
+    else:
+        asyncio.run(run_websocket(FilesysMCPServer, server_args, port=8768))

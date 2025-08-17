@@ -62,8 +62,9 @@ python backend/mcp/filesys/run_stdio.py --root-dir /path/to/root
 ```
 
 ### Integration with MCP Client
+
 ```python
-from backend.mcp.filesys.server import FilesysMCPServer
+from services.mcp.filesys.server import FilesysMCPServer
 
 # Create server with specific root directory
 server = FilesysMCPServer(root_dir="/path/to/files")

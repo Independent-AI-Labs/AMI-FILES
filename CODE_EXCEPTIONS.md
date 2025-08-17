@@ -25,10 +25,12 @@ Core file system operations handler that provides all file manipulation capabili
 Must modify `sys.path` BEFORE importing local modules to ensure correct module resolution.
 
 ### Pattern:
+
 ```python
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # Must come first
-from backend.mcp.filesys import FileSystemServer  # Now safe to import
+from services.mcp.filesys import FileSystemServer  # Now safe to import
 ```
 
 ## 3. Type Ignores for Handler Execution

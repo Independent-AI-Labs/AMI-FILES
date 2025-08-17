@@ -1,5 +1,1 @@
-"""Filesystem MCP server implementation."""
-
-from .server import FilesysMCPServer
-
-__all__ = ["FilesysMCPServer"]
+# Empty - no imports to avoid circular import hell
