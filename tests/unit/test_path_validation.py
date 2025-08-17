@@ -4,8 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
-from backend.mcp.filesys.file_utils import FileUtils
+from services.mcp.filesys.file_utils import FileUtils
 
 
 class TestPathValidation:

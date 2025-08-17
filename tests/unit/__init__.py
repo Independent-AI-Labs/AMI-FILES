@@ -1,1 +1,1 @@
-"""Unit tests for files module."""
+# Empty - no imports to avoid circular import hell

@@ -5,15 +5,15 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fast_search import FastFileSearcher
-from file_utils import (
+from files.backend.mcp.filesys.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.file_utils import (
     FileUtils,
     InputFormat,
     OffsetType,
     OutputFormat,
 )
+from files.backend.mcp.filesys.precommit_validator import PreCommitValidator
 from loguru import logger
-from precommit_validator import PreCommitValidator
 
 
 async def list_dir(

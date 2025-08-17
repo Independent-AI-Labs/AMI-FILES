@@ -4,8 +4,7 @@ import os
 import subprocess
 
 import pytest
-
-from backend.mcp.filesys.server import FilesysMCPServer
+from services.mcp.filesys.server import FilesysMCPServer
 
 
 @pytest.fixture
