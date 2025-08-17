@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from services.mcp.filesys.precommit_validator import PreCommitValidator
+from files.backend.mcp.filesys.precommit_validator import PreCommitValidator
 
 
 class TestPreCommitValidator:

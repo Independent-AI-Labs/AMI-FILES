@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from services.mcp.filesys.tools.git_handlers import (
+from files.backend.mcp.filesys.tools.git_handlers import (
     git_commit,
     git_diff,
     git_fetch,
