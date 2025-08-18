@@ -64,12 +64,12 @@ class FileFormatter:
 
             if old_line == new_line:
                 if old_line is not None:
-                    formatted.append(f"  {i+1:3} | {old_line}")
+                    formatted.append(f"  {i + 1:3} | {old_line}")
             else:
                 if old_line is not None:
-                    formatted.append(f"- {i+1:3} | {old_line}")
+                    formatted.append(f"- {i + 1:3} | {old_line}")
                 if new_line is not None:
-                    formatted.append(f"+ {i+1:3} | {new_line}")
+                    formatted.append(f"+ {i + 1:3} | {new_line}")
 
         return "\n".join(formatted)
 

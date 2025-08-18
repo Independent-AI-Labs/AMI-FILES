@@ -534,11 +534,11 @@ async def modify_file(
 
             if offset_enum == OffsetType.LINE:
                 lines = original_text.splitlines(keepends=True)
-                modified_lines = (
-                    lines[:start_offset_inclusive]
-                    + [new_text]
-                    + lines[end_offset_inclusive + 1 :]
-                )
+                modified_lines = [
+                    *lines[:start_offset_inclusive],
+                    new_text,
+                    *lines[end_offset_inclusive + 1 :],
+                ]
                 modified_str = "".join(modified_lines)
             elif offset_enum == OffsetType.CHAR:
                 modified_str = (
