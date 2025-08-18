@@ -1,5 +1,10 @@
 """Tool definitions for filesystem MCP server."""
 
+from .document_handlers import (
+    index_document,
+    read_document,
+    read_image,
+)
 from .git_handlers import (
     git_commit,
     git_diff,
@@ -311,6 +316,96 @@ def register_all_tools(registry: ToolRegistry) -> None:
                 },
             },
             "required": ["path", "old_content", "new_content"],
+        },
+    )
+
+    # Register document processing tools
+    registry.register(
+        name="index_document",
+        description="Parse and index documents for searchable storage with multi-modal analysis.",
+        handler=index_document,
+        parameters={
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "The path to the document file to index.",
+                },
+                "extract_tables": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Extract tables from the document.",
+                },
+                "extract_images": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Extract images from the document.",
+                },
+                "storage_backends": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "default": ["graph", "vector", "relational", "cache"],
+                    "description": "Storage backends to use for indexing.",
+                },
+            },
+            "required": ["path"],
+        },
+    )
+
+    registry.register(
+        name="read_document",
+        description="Read and parse documents into structured data models.",
+        handler=read_document,
+        parameters={
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "The path to the document file to read.",
+                },
+                "extraction_template": {
+                    "type": "object",
+                    "description": "Optional template for guided extraction.",
+                },
+                "extract_tables": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Extract tables from the document.",
+                },
+                "extract_images": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Extract images from the document.",
+                },
+            },
+            "required": ["path"],
+        },
+    )
+
+    registry.register(
+        name="read_image",
+        description="Analyze images using multimodal LLM (Google Gemini 2.5 Pro).",
+        handler=read_image,
+        parameters={
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "The path to the image file to analyze.",
+                },
+                "instruction": {
+                    "type": "string",
+                    "description": "Analysis instruction or template for the LLM.",
+                },
+                "perform_ocr": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Perform OCR (automatic with Gemini).",
+                },
+                "extract_chart_data": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Extract data from charts/graphs.",
+                },
+            },
+            "required": ["path"],
         },
     )
 
