@@ -5,14 +5,14 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.mcp.extractors import (
+from backend.extractors import (
     DocumentExtractor,
     DOCXExtractor,
     ImageExtractor,
     PDFExtractor,
     SpreadsheetExtractor,
 )
-from backend.mcp.models.document import (
+from backend.models.document import (
     Document,
     DocumentImage,
     DocumentSection,
@@ -93,7 +93,7 @@ async def index_document(
             # Store section (would use UnifiedCRUD in real implementation)
             section_ids.append(section.id)
 
-        document.section_ids = section_ids
+        document.section_ids = [sid for sid in section_ids if sid is not None]
 
         # Process and store tables
         if extract_tables:
@@ -109,7 +109,7 @@ async def index_document(
                 # Store table (would use UnifiedCRUD in real implementation)
                 table_ids.append(table.id)
 
-            document.table_ids = table_ids
+            document.table_ids = [tid for tid in table_ids if tid is not None]
 
         # Process and store images
         if extract_images:
@@ -124,7 +124,7 @@ async def index_document(
                 # Store image (would use UnifiedCRUD in real implementation)
                 image_ids.append(image.id)
 
-            document.image_ids = image_ids
+            document.image_ids = [iid for iid in image_ids if iid is not None]
 
         # Store document (would use UnifiedCRUD in real implementation)
         # For now, return the document as dict
