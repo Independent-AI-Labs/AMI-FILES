@@ -24,7 +24,8 @@ class TestPathValidation:
 
         # Validate relative path
         result = FileUtils.validate_file_path("test.txt", temp_dir)
-        assert result == test_file
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
         assert result.exists()
 
     def test_nested_relative_path_validation(self, temp_dir):
@@ -37,7 +38,8 @@ class TestPathValidation:
 
         # Validate nested relative path
         result = FileUtils.validate_file_path("subdir/nested/file.txt", temp_dir)
-        assert result == test_file
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
         assert result.exists()
 
     def test_absolute_path_within_root(self, temp_dir):
@@ -49,7 +51,8 @@ class TestPathValidation:
         # Use absolute path
         absolute_path = str(test_file.resolve())
         result = FileUtils.validate_file_path(absolute_path, temp_dir)
-        assert result == test_file
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
         assert result.exists()
 
     def test_absolute_path_matching_structure(self, temp_dir):
@@ -67,7 +70,8 @@ class TestPathValidation:
 
         # This should work - absolute path within root
         result = FileUtils.validate_file_path(str(test_file.resolve()), root_dir)
-        assert result == test_file
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
 
     def test_absolute_path_outside_root_with_matching_name(self, temp_dir):
         """Test handling of absolute paths outside root with matching directory name."""
@@ -113,7 +117,8 @@ class TestPathValidation:
 
         # Should work for existing file
         result = FileUtils.validate_path("exists.txt", temp_dir, must_exist=True)
-        assert result == test_file
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
 
         # Should fail for non-existing file
         with pytest.raises(ValueError) as exc_info:
@@ -130,7 +135,8 @@ class TestPathValidation:
 
         # Test with backslashes (Windows style)
         result = FileUtils.validate_file_path("folder\\file.txt", temp_dir)
-        assert result == test_file.resolve()
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
 
     def test_mixed_separators(self, temp_dir):
         """Test handling of mixed path separators."""
@@ -142,7 +148,8 @@ class TestPathValidation:
 
         # Test with mixed separators
         result = FileUtils.validate_file_path("a\\b/c\\file.txt", temp_dir)
-        assert result == test_file.resolve()
+        # Compare resolved paths to handle symlinks properly
+        assert result.resolve() == test_file.resolve()
 
     def test_dot_notation_paths(self, temp_dir):
         """Test handling of paths with . and .. notation."""

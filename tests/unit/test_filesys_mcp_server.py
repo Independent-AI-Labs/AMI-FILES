@@ -24,7 +24,8 @@ class TestFilesysMCPServer:
     def test_server_initialization(self, temp_dir):
         """Test server initializes correctly."""
         server = FilesysMCPServer(root_dir=str(temp_dir))
-        assert server.root_dir == temp_dir
+        # Compare resolved paths to handle symlinks properly
+        assert server.root_dir.resolve() == temp_dir.resolve()
         assert len(server.tools) > 0
         assert server.registry is not None
         assert server.executor is not None
