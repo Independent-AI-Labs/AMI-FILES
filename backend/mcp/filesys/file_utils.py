@@ -179,6 +179,13 @@ class FileUtils:
             # Resolve the root directory to an absolute path
             root_path = root_dir.resolve()
 
+            # Normalize Windows-style separators to forward slashes on Unix systems
+            import platform
+
+            if platform.system() != "Windows":
+                # On Unix systems, replace backslashes with forward slashes
+                file_path = file_path.replace("\\", "/")
+
             # Try to interpret the path
             path_obj = Path(file_path)
 
