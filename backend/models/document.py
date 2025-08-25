@@ -2,12 +2,24 @@
 Document models for intelligent document processing
 """
 
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, ClassVar
 
-from base.backend.dataops.storage_model import StorageModel
-from base.backend.dataops.storage_types import StorageConfig, StorageType
-from pydantic import Field
+# Set up module imports using the STANDARD way
+current_file = Path(__file__).resolve()
+orchestrator_root = current_file
+while orchestrator_root != orchestrator_root.parent:
+    if (orchestrator_root / ".git").exists() and (orchestrator_root / "base").exists():
+        break
+    orchestrator_root = orchestrator_root.parent
+sys.path.insert(0, str(orchestrator_root))
+
+from base.backend.config.loader import storage_config  # noqa: E402
+from base.backend.dataops.storage_model import StorageModel  # noqa: E402
+from base.backend.dataops.storage_types import StorageConfig  # noqa: E402
+from pydantic import Field  # noqa: E402
 
 
 class Document(StorageModel):
@@ -46,27 +58,17 @@ class Document(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "graph": StorageConfig(
-                storage_type=StorageType.GRAPH, host="172.72.72.2", port=9080
+            "graph": StorageConfig.from_dict(
+                storage_config.get_storage_config("dgraph")
             ),
-            "vector": StorageConfig(
-                storage_type=StorageType.VECTOR,
-                host="172.72.72.2",
-                port=5432,
-                database="vectors",
-                username="postgres",
-                password="postgres",
+            "vector": StorageConfig.from_dict(
+                storage_config.get_storage_config("pgvector")
             ),
-            "relational": StorageConfig(
-                storage_type=StorageType.RELATIONAL,
-                host="172.72.72.2",
-                port=5432,
-                database="documents",
-                username="postgres",
-                password="postgres",
+            "relational": StorageConfig.from_dict(
+                storage_config.get_storage_config("postgres")
             ),
-            "cache": StorageConfig(
-                storage_type=StorageType.CACHE, host="172.72.72.2", port=6379
+            "cache": StorageConfig.from_dict(
+                storage_config.get_storage_config("redis")
             ),
         }
         path = "documents"
@@ -126,19 +128,14 @@ class DocumentSection(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "graph": StorageConfig(
-                storage_type=StorageType.GRAPH, host="172.72.72.2", port=9080
+            "graph": StorageConfig.from_dict(
+                storage_config.get_storage_config("dgraph")
             ),
-            "vector": StorageConfig(
-                storage_type=StorageType.VECTOR,
-                host="172.72.72.2",
-                port=5432,
-                database="vectors",
-                username="postgres",
-                password="postgres",
+            "vector": StorageConfig.from_dict(
+                storage_config.get_storage_config("pgvector")
             ),
-            "cache": StorageConfig(
-                storage_type=StorageType.CACHE, host="172.72.72.2", port=6379
+            "cache": StorageConfig.from_dict(
+                storage_config.get_storage_config("redis")
             ),
         }
         path = "document_sections"
@@ -180,19 +177,14 @@ class DocumentTable(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "relational": StorageConfig(
-                storage_type=StorageType.RELATIONAL,
-                host="172.72.72.2",
-                port=5432,
-                database="documents",
-                username="postgres",
-                password="postgres",
+            "relational": StorageConfig.from_dict(
+                storage_config.get_storage_config("postgres")
             ),
-            "graph": StorageConfig(
-                storage_type=StorageType.GRAPH, host="172.72.72.2", port=9080
+            "graph": StorageConfig.from_dict(
+                storage_config.get_storage_config("dgraph")
             ),
-            "cache": StorageConfig(
-                storage_type=StorageType.CACHE, host="172.72.72.2", port=6379
+            "cache": StorageConfig.from_dict(
+                storage_config.get_storage_config("redis")
             ),
         }
         path = "document_tables"
@@ -256,19 +248,14 @@ class DocumentImage(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "vector": StorageConfig(
-                storage_type=StorageType.VECTOR,
-                host="172.72.72.2",
-                port=5432,
-                database="vectors",
-                username="postgres",
-                password="postgres",
+            "vector": StorageConfig.from_dict(
+                storage_config.get_storage_config("pgvector")
             ),
-            "graph": StorageConfig(
-                storage_type=StorageType.GRAPH, host="172.72.72.2", port=9080
+            "graph": StorageConfig.from_dict(
+                storage_config.get_storage_config("dgraph")
             ),
-            "cache": StorageConfig(
-                storage_type=StorageType.CACHE, host="172.72.72.2", port=6379
+            "cache": StorageConfig.from_dict(
+                storage_config.get_storage_config("redis")
             ),
         }
         path = "document_images"
