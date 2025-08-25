@@ -1,31 +1,12 @@
 """Filesystem MCP Server - Provides file manipulation tools via MCP protocol."""
 
-import sys
 from pathlib import Path
 
+# Use standard import setup
+from base.backend.utils.standard_imports import setup_imports
 from loguru import logger
 
-# STANDARD IMPORT SETUP - DO NOT MODIFY
-current_file = Path(__file__).resolve()
-orchestrator_root = current_file
-while orchestrator_root != orchestrator_root.parent:
-    if (orchestrator_root / ".git").exists() and (orchestrator_root / "base").exists():
-        break
-    orchestrator_root = orchestrator_root.parent
-else:
-    raise RuntimeError(f"Could not find orchestrator root from {current_file}")
-
-if str(orchestrator_root) not in sys.path:
-    sys.path.insert(0, str(orchestrator_root))
-
-module_names = {"base", "browser", "files", "compliance", "domains", "streams"}
-module_root = current_file.parent
-while module_root != orchestrator_root:
-    if module_root.name in module_names:
-        if str(module_root) not in sys.path:
-            sys.path.insert(0, str(module_root))
-        break
-    module_root = module_root.parent
+ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
 
 
 from base.backend.mcp.server_base import StandardMCPServer  # noqa: E402
@@ -60,11 +41,11 @@ class FilesysMCPServer(StandardMCPServer[ToolRegistry, ToolExecutor]):
         logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}")
         logger.info(f"Registered {len(self.tools)} filesystem tools")
 
-    def get_registry_class(self) -> type[ToolRegistry]:  # type: ignore[no-any-return]
+    def get_registry_class(self) -> type[ToolRegistry]:
         """Get the tool registry class."""
         return ToolRegistry
 
-    def get_executor_class(self) -> type[ToolExecutor]:  # type: ignore[no-any-return]
+    def get_executor_class(self) -> type[ToolExecutor]:
         """Get the tool executor class."""
         return ToolExecutor
 
