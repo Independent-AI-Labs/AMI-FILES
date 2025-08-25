@@ -37,9 +37,18 @@ class TestFilesysMCPIntegration:
 
         # 2. Write some files
         files_to_create = [
-            ("project/src/main.py", 'def main():\n    print("Hello, World!")'),
-            ("project/src/utils.py", 'def helper():\n    return "Helper function"'),
-            ("project/tests/test_main.py", "def test_main():\n    assert True"),
+            (
+                "project/src/main.py",
+                '"""Main module."""\n\n\ndef main() -> None:\n    """Main function."""\n    print("Hello, World!")\n',
+            ),
+            (
+                "project/src/utils.py",
+                '"""Utilities module."""\n\n\ndef helper() -> str:\n    """Helper function."""\n    return "Helper function"\n',
+            ),
+            (
+                "project/tests/test_main.py",
+                '"""Tests for main module."""\n\n\ndef test_main() -> None:\n    """Test main function."""\n    assert True\n',
+            ),
             (
                 "project/docs/README.md",
                 "# Project Documentation\n\nThis is the main documentation.",
@@ -84,8 +93,8 @@ class TestFilesysMCPIntegration:
             "modify_file",
             {
                 "path": "project/src/main.py",
-                "start_offset_inclusive": 1,
-                "end_offset_inclusive": 1,
+                "start_offset_inclusive": 5,
+                "end_offset_inclusive": 5,
                 "new_content": '    print("Modified Hello!")',
                 "offset_type": "line",
             },
