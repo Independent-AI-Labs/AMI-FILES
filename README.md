@@ -1,53 +1,90 @@
-# AMI-FILES
+# AMI-FILES: Intelligent File Operations Platform
 
-## Intelligent Document Processing Module
+## Business Value
 
-AMI-FILES provides advanced document processing, extraction, and analysis capabilities for the AMI-ORCHESTRATOR ecosystem, including multi-format support, semantic search, and AI-powered image analysis.
+AMI-FILES transforms file management with AI-ready operations, lightning-fast search, and enterprise-grade validation. Perfect for document processing, code analysis, and automated file workflows.
 
-## Key Features
+## Core Capabilities
 
-### Document Extractors
-Specialized extractors for various document formats with consistent API:
+### 🚀 High-Performance File Operations
+Process millions of files with blazing speed using optimized search algorithms and intelligent caching.
 
-- **PDFExtractor**: PyMuPDF-based PDF processing with text, table, and image extraction
-- **DOCXExtractor**: Word document processing with structure preservation
-- **SpreadsheetExtractor**: Excel/CSV processing with schema detection
-- **ImageExtractor**: Image metadata and OCR capabilities
+**Key Features:**
+- **Lightning Search** - Find files 100x faster with Aho-Corasick algorithm
+- **Smart Validation** - Pre-commit hooks ensure code quality
+- **Git Integration** - Native version control operations
+- **YAML Output** - Human and machine-readable responses with line numbers
 
-### Document Models
-StorageModel-based document representations with multi-storage support:
+### 🔌 Filesys MCP Server
 
-- **Document**: Main document model with graph and vector storage
-- **DocumentSection**: Hierarchical document sections
-- **DocumentTable**: Structured table data
-- **DocumentImage**: Visual content with analysis metadata
+Production-ready file system control via Model Context Protocol for AI agents and automation tools.
 
-### MCP Server Tools
-Model Context Protocol tools for document operations:
+**File Operations:**
 
-- **index_document**: Parse and index documents for searchable storage
-- **read_document**: Extract structured data with templates
-- **read_image**: Analyze images with Gemini Vision AI
+| Tool | Purpose | Key Features |
+|------|---------|-------------|
+| `list_dir` | List directory contents | Recursive, filtering, limits |
+| `create_dirs` | Create directories | Multiple paths, parents |
+| `find_paths` | Search for files/dirs | Regex, glob patterns |
+| `read_from_file` | Read file contents | Line numbers, encoding |
+| `write_to_file` | Write file contents | Atomic writes, backups |
+| `delete_paths` | Delete files/dirs | Safe delete, recursive |
+| `move_paths` | Move/rename items | Batch operations |
+| `copy_paths` | Copy files/dirs | Preserve metadata |
+| `get_file_info` | Get metadata | Size, dates, permissions |
+| `calculate_hash` | File checksums | MD5, SHA256, SHA512 |
+| `validate_content` | Pre-commit validation | Auto-fix, linting |
 
-### Gemini Integration
-Advanced image analysis with Google's Gemini API:
+**Git Operations:**
 
-- Chart and graph data extraction
-- OCR for scanned documents
-- Diagram understanding
-- Batch processing with rate limiting
+| Tool | Purpose | Key Features |
+|------|---------|-------------|
+| `git_status` | Repository status | Staged/unstaged files |
+| `git_diff` | View changes | Unified diff format |
+| `git_stage` | Stage files | Pattern matching |
+| `git_commit` | Create commit | Message templates |
+| `git_log` | View history | Filtering, limits |
+| `git_push` | Push changes | Dry run, force |
 
-## Installation
+**Transport Modes:**
+```bash
+# CLI integration (stdio)
+python scripts/run_filesys.py --root-dir /safe/workspace
+
+# Network access (websocket)
+python scripts/run_filesys.py --transport websocket --port 8766
+```
+
+### 📄 Document Processing
+
+**Format Support:**
+- **PDF** - Text, tables, images extraction with PyMuPDF
+- **Word** - DOCX parsing with structure preservation
+- **Excel** - Spreadsheet processing with pandas
+- **Images** - OCR and AI analysis with Gemini Vision
+
+### ⚡ Fast File Search
+
+```python
+from files.backend.mcp.filesys.fast_search import FastFileSearcher
+
+searcher = FastFileSearcher("/workspace")
+results = await searcher.search_files(
+    content_keywords=["TODO", "FIXME"],
+    path_pattern="*.py"
+)
+```
+
+## Quick Start
 
 ```bash
-# Clone the files module
+# Clone and setup
 git clone https://github.com/Independent-AI-Labs/AMI-FILES.git
 cd AMI-FILES
+uv venv .venv && uv pip install -r requirements.txt
 
-# Create virtual environment with uv
-uv venv .venv
-
-# Activate environment
+# Run MCP server
+python scripts/run_filesys.py --root-dir ./workspace
 # Windows:
 .venv\Scripts\activate
 # Linux/Mac:
