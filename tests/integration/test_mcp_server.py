@@ -93,11 +93,11 @@ class TestFilesysMCPServerModes:
 
                 # Verify some expected tools exist
                 tool_names = [tool["name"] for tool in response["result"]["tools"]]
-                assert "read_file" in tool_names
-                assert "write_file" in tool_names
-                assert "list_directory" in tool_names
-                assert "create_directory" in tool_names
-                assert "delete_file" in tool_names
+                assert "read_from_file" in tool_names
+                assert "write_to_file" in tool_names
+                assert "list_dir" in tool_names
+                assert "create_dirs" in tool_names
+                assert "delete_paths" in tool_names
 
             finally:
                 proc.terminate()
@@ -176,11 +176,11 @@ class TestFilesysMCPServerModes:
 
                     # Verify some expected tools exist
                     tool_names = [tool["name"] for tool in response["result"]["tools"]]
-                    assert "read_file" in tool_names
-                    assert "write_file" in tool_names
-                    assert "list_directory" in tool_names
-                    assert "create_directory" in tool_names
-                    assert "delete_file" in tool_names
+                    assert "read_from_file" in tool_names
+                    assert "write_to_file" in tool_names
+                    assert "list_dir" in tool_names
+                    assert "create_dirs" in tool_names
+                    assert "delete_paths" in tool_names
 
             finally:
                 proc.terminate()
@@ -230,12 +230,12 @@ class TestFilesysMCPServerModes:
                 assert response["id"] == 1
                 assert "result" in response
 
-                # Test write_file tool
+                # Test write_to_file tool
                 write_request = {
                     "jsonrpc": "2.0",
                     "method": "tools/call",
                     "params": {
-                        "name": "write_file",
+                        "name": "write_to_file",
                         "arguments": {
                             "path": "test.txt",
                             "content": "Hello from MCP test!",
@@ -257,11 +257,14 @@ class TestFilesysMCPServerModes:
                 assert response["id"] == 2
                 assert "result" in response
 
-                # Test read_file tool
+                # Test read_from_file tool
                 read_request = {
                     "jsonrpc": "2.0",
                     "method": "tools/call",
-                    "params": {"name": "read_file", "arguments": {"path": "test.txt"}},
+                    "params": {
+                        "name": "read_from_file",
+                        "arguments": {"path": "test.txt"},
+                    },
                     "id": 3,
                 }
 
@@ -282,11 +285,11 @@ class TestFilesysMCPServerModes:
                 content = response["result"]["content"]
                 assert "Hello from MCP test!" in str(content)
 
-                # Test list_directory tool
+                # Test list_dir tool
                 list_request = {
                     "jsonrpc": "2.0",
                     "method": "tools/call",
-                    "params": {"name": "list_directory", "arguments": {"path": "."}},
+                    "params": {"name": "list_dir", "arguments": {"path": "."}},
                     "id": 4,
                 }
 
@@ -354,12 +357,12 @@ class TestFilesysMCPServerModes:
                 assert response["id"] == 1
                 assert "result" in response
 
-                # Test create_directory tool
+                # Test create_dirs tool
                 mkdir_request = {
                     "jsonrpc": "2.0",
                     "method": "tools/call",
                     "params": {
-                        "name": "create_directory",
+                        "name": "create_dirs",
                         "arguments": {"path": "test_dir"},
                     },
                     "id": 2,
@@ -383,7 +386,7 @@ class TestFilesysMCPServerModes:
                     "jsonrpc": "2.0",
                     "method": "tools/call",
                     "params": {
-                        "name": "write_file",
+                        "name": "write_to_file",
                         "arguments": {
                             "path": "test_dir/nested_file.txt",
                             "content": "Nested file content",
