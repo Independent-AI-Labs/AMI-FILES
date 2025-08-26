@@ -1,19 +1,19 @@
-# AMI-FILES: Intelligent File Operations Platform
+# AMI-FILES: Secure File Operations Platform
 
 ## Business Value
 
-AMI-FILES transforms file management with AI-ready operations, lightning-fast search, and enterprise-grade validation. Perfect for document processing, code analysis, and automated file workflows.
+AMI-FILES ensures all file operations meet enterprise security and compliance requirements. With built-in access controls, audit logging, and sandboxed execution, every file interaction is traceable and compliant with data protection regulations.
 
 ## Core Capabilities
 
-### 🚀 High-Performance File Operations
-Process millions of files with blazing speed using optimized search algorithms and intelligent caching.
+### 🚀 Secure & Auditable File Operations
+Every file operation is controlled, logged, and compliant with security policies.
 
-**Key Features:**
-- **Lightning Search** - Find files 100x faster with Aho-Corasick algorithm
-- **Smart Validation** - Pre-commit hooks ensure code quality
-- **Git Integration** - Native version control operations
-- **YAML Output** - Human and machine-readable responses with line numbers
+**Compliance Features:**
+- **Access Control** - Operations restricted to configured safe paths
+- **Audit Logging** - Every read, write, delete tracked with timestamps
+- **Pre-commit Validation** - Security and compliance checks before changes
+- **Cryptographic Verification** - File integrity checking with hash validation
 
 ### 🔌 Filesys MCP Server
 
@@ -55,13 +55,13 @@ python scripts/run_filesys.py --root-dir /safe/workspace
 python scripts/run_filesys.py --transport websocket --port 8766
 ```
 
-### 📄 Document Processing
+### 📄 Compliant Document Processing
 
-**Format Support:**
-- **PDF** - Text, tables, images extraction with PyMuPDF
-- **Word** - DOCX parsing with structure preservation
-- **Excel** - Spreadsheet processing with pandas
-- **Images** - OCR and AI analysis with Gemini Vision
+**Secure Processing Features:**
+- **PDF** - Extract with data classification and redaction support
+- **Word** - Parse while preserving document permissions
+- **Excel** - Process with cell-level access control
+- **Images** - OCR with PII detection and masking capabilities
 
 ### ⚡ Fast File Search
 
@@ -122,6 +122,20 @@ class Document(StorageModel):
             )
         }
 ```
+
+## Compliance & Security
+
+### Data Protection Features
+- **Path Sandboxing** - Restrict operations to approved directories
+- **PII Detection** - Automatic identification of sensitive data
+- **Retention Policies** - Automatic file expiry and deletion
+- **Access Logging** - Complete audit trail for compliance
+
+### GDPR Compliance
+- **Right to Access** - Export all files related to a data subject
+- **Right to Erasure** - Secure deletion with verification
+- **Data Portability** - Standard format exports
+- **Consent Tracking** - Document processing permissions
 
 ## Usage Examples
 
