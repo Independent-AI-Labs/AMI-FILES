@@ -67,7 +67,7 @@ class Document(StorageModel):
             "relational": StorageConfig.from_dict(
                 storage_config.get_storage_config("postgres")
             ),
-            "cache": StorageConfig.from_dict(
+            "inmem": StorageConfig.from_dict(
                 storage_config.get_storage_config("redis")
             ),
         }
@@ -134,7 +134,7 @@ class DocumentSection(StorageModel):
             "vector": StorageConfig.from_dict(
                 storage_config.get_storage_config("pgvector")
             ),
-            "cache": StorageConfig.from_dict(
+            "inmem": StorageConfig.from_dict(
                 storage_config.get_storage_config("redis")
             ),
         }
@@ -183,7 +183,7 @@ class DocumentTable(StorageModel):
             "graph": StorageConfig.from_dict(
                 storage_config.get_storage_config("dgraph")
             ),
-            "cache": StorageConfig.from_dict(
+            "inmem": StorageConfig.from_dict(
                 storage_config.get_storage_config("redis")
             ),
         }
@@ -254,7 +254,7 @@ class DocumentImage(StorageModel):
             "graph": StorageConfig.from_dict(
                 storage_config.get_storage_config("dgraph")
             ),
-            "cache": StorageConfig.from_dict(
+            "inmem": StorageConfig.from_dict(
                 storage_config.get_storage_config("redis")
             ),
         }
