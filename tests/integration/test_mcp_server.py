@@ -413,7 +413,7 @@ class TestFilesysMCPServerModes:
                     "jsonrpc": "2.0",
                     "method": "tools/call",
                     "params": {
-                        "name": "list_directory",
+                        "name": "list_dir",
                         "arguments": {"path": "test_dir"},
                     },
                     "id": 4,
