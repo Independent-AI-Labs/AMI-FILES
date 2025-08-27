@@ -3,18 +3,38 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from files.backend.mcp.filesys.tools.git_handlers import (
-    git_commit,
-    git_diff,
-    git_fetch,
-    git_history,
-    git_merge_abort,
-    git_pull,
-    git_push,
-    git_restore,
-    git_stage,
-    git_status,
-    git_unstage,
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_commit_tool as git_commit,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_diff_tool as git_diff,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_fetch_tool as git_fetch,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_history_tool as git_history,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_merge_abort_tool as git_merge_abort,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_pull_tool as git_pull,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_push_tool as git_push,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_restore_tool as git_restore,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_stage_tool as git_stage,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_status_tool as git_status,
+)
+from files.backend.mcp.filesys.tools.git_tools import (
+    git_unstage_tool as git_unstage,
 )
 
 
