@@ -1,7 +1,7 @@
 """Filesystem MCP server using FastMCP."""
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 # Use standard import setup
 from base.backend.utils.standard_imports import setup_imports
@@ -38,6 +38,13 @@ from .tools.git_tools import (  # noqa: E402
     git_stage_tool,
     git_status_tool,
     git_unstage_tool,
+)
+from .tools.python_tools import (  # noqa: E402
+    python_list_tasks_tool,
+    python_run_background_tool,
+    python_run_tool,
+    python_task_cancel_tool,
+    python_task_status_tool,
 )
 
 
@@ -167,20 +174,33 @@ class FilesysFastMCPServer:
             """Delete paths."""
             return await delete_paths_tool(self.root_dir, paths)
 
-        @self.mcp.tool(description="Modify file by replacing content")
+        @self.mcp.tool(
+            description="Modify file by replacing content at specific offsets"
+        )
         async def modify_file(
-            path: str, old_content: str, new_content: str
+            path: str,
+            start_offset_inclusive: int,
+            end_offset_inclusive: int,
+            new_content: str,
+            offset_type: str = "line",
         ) -> dict[str, Any]:
             """Modify file."""
-            return await modify_file_tool(self.root_dir, path, old_content, new_content)
+            return await modify_file_tool(
+                self.root_dir,
+                path,
+                start_offset_inclusive,
+                end_offset_inclusive,
+                new_content,
+                offset_type,
+            )
 
         @self.mcp.tool(description="Replace text in file")
         async def replace_in_file(
-            path: str, pattern: str, replacement: str, regex: bool = False
+            path: str, old_content: str, new_content: str, is_regex: bool = False
         ) -> dict[str, Any]:
             """Replace in file."""
             return await replace_in_file_tool(
-                self.root_dir, path, pattern, replacement, regex
+                self.root_dir, path, old_content, new_content, is_regex
             )
 
         # Git tools
@@ -284,6 +304,47 @@ class FilesysFastMCPServer:
             """Abort merge."""
             return await git_merge_abort_tool(self.root_dir, repo_path)
 
+        # Python execution tools
+        @self.mcp.tool(description="Execute Python script or code")
+        async def python_run(
+            script: str,
+            args: list[str] | None = None,
+            timeout: int = 300,
+            cwd: str | None = None,
+            python: str = "venv",
+        ) -> dict[str, Any]:
+            """Execute Python script."""
+            return await python_run_tool(
+                self.root_dir, script, args, timeout, cwd, python
+            )
+
+        @self.mcp.tool(description="Execute Python script in background")
+        async def python_run_background(
+            script: str,
+            args: list[str] | None = None,
+            cwd: str | None = None,
+            python: str = "venv",
+        ) -> dict[str, Any]:
+            """Execute Python script in background."""
+            return await python_run_background_tool(
+                self.root_dir, script, args, cwd, python
+            )
+
+        @self.mcp.tool(description="Get status of background Python task")
+        async def python_task_status(task_id: str) -> dict[str, Any]:
+            """Get Python task status."""
+            return await python_task_status_tool(task_id)
+
+        @self.mcp.tool(description="Cancel background Python task")
+        async def python_task_cancel(task_id: str) -> dict[str, Any]:
+            """Cancel Python task."""
+            return await python_task_cancel_tool(task_id)
+
+        @self.mcp.tool(description="List all background Python tasks")
+        async def python_list_tasks() -> dict[str, Any]:
+            """List Python tasks."""
+            return await python_list_tasks_tool()
+
         # Document tools
         @self.mcp.tool(description="Parse and index documents for searchable storage")
         async def index_document(
@@ -321,10 +382,10 @@ class FilesysFastMCPServer:
                 path, instruction, perform_ocr, extract_chart_data
             )
 
-    def run(self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio"):
+    def run(self, transport: str = "stdio"):
         """Run the server.
 
         Args:
             transport: Transport type (stdio, sse, or streamable-http)
         """
-        self.mcp.run(transport=transport)
+        self.mcp.run(transport=transport)  # type: ignore[arg-type]

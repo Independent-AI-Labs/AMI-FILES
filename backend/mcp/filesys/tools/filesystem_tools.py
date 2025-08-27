@@ -31,7 +31,7 @@ async def list_dir_tool(
 
     try:
         # Validate and resolve the path
-        safe_path = validate_path(root_dir, path)
+        safe_path = validate_path(root_dir, path, allow_write=False)
 
         if not safe_path.exists():
             return {"error": f"Path does not exist: {path}"}
@@ -192,7 +192,7 @@ async def read_from_file_tool(
     logger.debug(f"Reading file: path={path}")
 
     try:
-        safe_path = validate_path(root_dir, path)
+        safe_path = validate_path(root_dir, path, allow_write=False)
 
         if not safe_path.exists():
             return {"error": f"File does not exist: {path}"}
@@ -300,7 +300,7 @@ async def write_to_file_tool(
     logger.debug(f"Writing to file: path={path}")
 
     try:
-        safe_path = validate_path(root_dir, path)
+        safe_path = validate_path(root_dir, path, allow_write=False)
 
         # Create parent directories if needed
         safe_path.parent.mkdir(parents=True, exist_ok=True)
@@ -383,46 +383,94 @@ async def delete_paths_tool(root_dir: Path, paths: list[str]) -> dict[str, Any]:
 
     try:
         deleted = []
+        errors = []
+
         for path_str in paths:
-            safe_path = validate_path(root_dir, path_str)
+            try:
+                safe_path = validate_path(root_dir, path_str)
 
-            if not safe_path.exists():
-                continue
+                if not safe_path.exists():
+                    errors.append(f"{path_str}: File or directory does not exist")
+                    continue
 
-            if safe_path.is_dir():
-                shutil.rmtree(safe_path)
-            else:
-                safe_path.unlink()
+                if safe_path.is_dir():
+                    shutil.rmtree(safe_path)
+                else:
+                    safe_path.unlink()
 
-            deleted.append(str(safe_path.relative_to(root_dir)))
+                deleted.append(str(safe_path.relative_to(root_dir)))
+            except Exception as e:
+                errors.append(f"{path_str}: {e!s}")
 
-        return {"success": True, "deleted": deleted}
+        result = {"deleted": deleted}
+        if errors:
+            result["errors"] = errors
+        else:
+            result["success"] = True  # type: ignore[assignment]
+
+        return result
     except Exception as e:
         logger.error(f"Failed to delete paths: {e}")
         return {"error": str(e)}
 
 
 async def modify_file_tool(
-    root_dir: Path, path: str, old_content: str, new_content: str
+    root_dir: Path,
+    path: str,
+    start_offset_inclusive: int,
+    end_offset_inclusive: int,
+    new_content: str,
+    offset_type: str = "line",
 ) -> dict[str, Any]:
-    """Modify file by replacing content."""
-    logger.debug(f"Modifying file: path={path}")
+    """Modify file by replacing content at specific offsets."""
+    logger.debug(
+        f"Modifying file: path={path}, start={start_offset_inclusive}, "
+        f"end={end_offset_inclusive}, offset_type={offset_type}"
+    )
 
     try:
-        safe_path = validate_path(root_dir, path)
+        safe_path = validate_path(root_dir, path, allow_write=False)
 
         if not safe_path.exists():
             return {"error": f"File does not exist: {path}"}
 
         content = safe_path.read_text(encoding="utf-8")
 
-        if old_content not in content:
-            return {"error": "Old content not found in file"}
+        if offset_type == "line":
+            lines = content.splitlines(keepends=True)
+            # Convert to 0-based indexing
+            start_idx = start_offset_inclusive - 1
+            end_idx = end_offset_inclusive - 1
 
-        new_full_content = content.replace(old_content, new_content, 1)
+            if start_idx < 0 or end_idx >= len(lines):
+                return {"error": "Line offsets out of range"}
+
+            # Replace the lines
+            new_lines = (
+                lines[:start_idx]
+                + [new_content + ("\n" if not new_content.endswith("\n") else "")]
+                + lines[end_idx + 1 :]
+            )
+            new_full_content = "".join(new_lines)
+        elif offset_type == "byte":
+            if start_offset_inclusive < 0 or end_offset_inclusive >= len(content):
+                return {"error": "Byte offsets out of range"}
+
+            new_full_content = (
+                content[:start_offset_inclusive]
+                + new_content
+                + content[end_offset_inclusive + 1 :]
+            )
+        else:
+            return {"error": f"Invalid offset_type: {offset_type}"}
+
         safe_path.write_text(new_full_content, encoding="utf-8")
 
-        return {"success": True, "path": str(safe_path.relative_to(root_dir))}
+        return {
+            "success": True,
+            "path": str(safe_path.relative_to(root_dir)),
+            "message": f"Modified {path}",
+        }
     except Exception as e:
         logger.error(f"Failed to modify file {path}: {e}")
         return {"error": str(e)}
@@ -435,7 +483,7 @@ async def replace_in_file_tool(
     logger.debug(f"Replacing in file: path={path}, pattern={pattern}, regex={regex}")
 
     try:
-        safe_path = validate_path(root_dir, path)
+        safe_path = validate_path(root_dir, path, allow_write=False)
 
         if not safe_path.exists():
             return {"error": f"File does not exist: {path}"}
