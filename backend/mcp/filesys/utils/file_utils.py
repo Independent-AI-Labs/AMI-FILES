@@ -54,7 +54,7 @@ class FileUtils:
 
         try:
             config_path = (
-                Path(__file__).parent.parent.parent.parent
+                Path(__file__).parent.parent.parent.parent.parent
                 / "res"
                 / "file_extensions.json"
             )

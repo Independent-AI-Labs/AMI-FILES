@@ -190,7 +190,7 @@ class TestFastFileSearcher:
         """Test that fast search is actually faster for large directories."""
         import time
 
-        from files.backend.mcp.filesys.file_utils import FileUtils
+        from files.backend.mcp.filesys.utils.file_utils import FileUtils
 
         # Create more files for performance test
         for i in range(50):
