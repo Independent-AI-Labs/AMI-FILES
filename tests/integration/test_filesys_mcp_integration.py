@@ -5,7 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from files.backend.mcp.filesys.server import FilesysMCPServer
+from files.backend.mcp.filesys.filesys_server import (
+    FilesysFastMCPServer as FilesysMCPServer,
+)
 
 
 class TestFilesysMCPIntegration:

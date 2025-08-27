@@ -5,14 +5,14 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.extractors import (
+from files.backend.extractors import (
     DocumentExtractor,
     DOCXExtractor,
     ImageExtractor,
     PDFExtractor,
     SpreadsheetExtractor,
 )
-from backend.models.document import (
+from files.backend.models.document import (
     Document,
     DocumentImage,
     DocumentSection,
@@ -22,7 +22,7 @@ from backend.models.document import (
 logger = logging.getLogger(__name__)
 
 
-async def index_document(
+async def index_document_tool(
     path: str,
     extract_tables: bool = True,
     extract_images: bool = False,
@@ -153,7 +153,7 @@ async def index_document(
         return {"error": str(e)}
 
 
-async def read_document(
+async def read_document_tool(
     path: str,
     extraction_template: Optional[dict[str, Any]] = None,
     extract_tables: bool = True,
@@ -236,7 +236,7 @@ async def read_document(
         return {"error": str(e)}
 
 
-async def read_image(
+async def read_image_tool(
     path: str,
     instruction: Optional[str] = None,
     perform_ocr: bool = True,

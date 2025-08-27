@@ -6,8 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from files.backend.mcp.filesys.file_utils import FileUtils
 from loguru import logger
+
+from .file_utils import FileUtils
 
 
 class PreCommitValidator:
