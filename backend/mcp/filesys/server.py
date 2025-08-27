@@ -41,11 +41,11 @@ class FilesysMCPServer(StandardMCPServer[ToolRegistry, ToolExecutor]):
         logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}")
         logger.info(f"Registered {len(self.tools)} filesystem tools")
 
-    def get_registry_class(self) -> type[ToolRegistry]:
+    def get_registry_class(self):
         """Get the tool registry class."""
         return ToolRegistry
 
-    def get_executor_class(self) -> type[ToolExecutor]:
+    def get_executor_class(self):
         """Get the tool executor class."""
         return ToolExecutor
 
