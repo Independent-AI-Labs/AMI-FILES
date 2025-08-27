@@ -4,8 +4,8 @@ import time
 from pathlib import Path
 
 import pytest
-from files.backend.mcp.filesys.fast_search import FastFileSearcher
-from files.backend.mcp.filesys.file_utils import FileUtils
+from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.utils.file_utils import FileUtils
 
 
 class TestFastSearchIntegration:
@@ -35,7 +35,7 @@ class TestFastSearchIntegration:
 
             # Should find specific files we know exist
             assert any("file_utils.py" in r for r in results)
-            assert any("handlers.py" in r for r in results)
+            assert any("filesystem_tools.py" in r for r in results)
             assert any("fast_search.py" in r for r in results)
         finally:
             searcher.close()

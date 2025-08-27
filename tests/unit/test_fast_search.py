@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from files.backend.mcp.filesys.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 
 
 class TestFastFileSearcher:

@@ -27,6 +27,8 @@ class TestFilesysMCPServerModes:
             server_script = (
                 Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
             )
+            # Use SYSTEM Python to test that the script handles environment setup
+            # The script should detect it's not venv and re-execute with correct Python
             proc = subprocess.Popen(
                 [sys.executable, str(server_script), "--root-dir", temp_dir],
                 stdin=subprocess.PIPE,
@@ -112,6 +114,8 @@ class TestFilesysMCPServerModes:
             server_script = (
                 Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
             )
+            # Use SYSTEM Python to test that the script handles environment setup
+            # The script should detect it's not venv and re-execute with correct Python
             proc = subprocess.Popen(
                 [
                     sys.executable,
@@ -195,6 +199,7 @@ class TestFilesysMCPServerModes:
             server_script = (
                 Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
             )
+            # Use SYSTEM Python to test that the script handles environment setup
             proc = subprocess.Popen(
                 [sys.executable, str(server_script), "--root-dir", temp_dir],
                 stdin=subprocess.PIPE,
@@ -322,6 +327,7 @@ class TestFilesysMCPServerModes:
             server_script = (
                 Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
             )
+            # Use SYSTEM Python to test that the script handles environment setup
             proc = subprocess.Popen(
                 [sys.executable, str(server_script), "--root-dir", temp_dir],
                 stdin=subprocess.PIPE,
