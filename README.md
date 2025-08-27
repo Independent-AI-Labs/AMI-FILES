@@ -49,10 +49,10 @@ Production-ready file system control via Model Context Protocol for AI agents an
 **Transport Modes:**
 ```bash
 # CLI integration (stdio)
-python scripts/run_filesys.py --root-dir /safe/workspace
+python backend/mcp/filesys/run_filesys.py --root-dir /safe/workspace
 
 # Network access (websocket)
-python scripts/run_filesys.py --transport websocket --port 8766
+python backend/mcp/filesys/run_filesys.py --transport websocket --port 8766
 ```
 
 ### 📄 Compliant Document Processing
@@ -84,7 +84,7 @@ cd AMI-FILES
 uv venv .venv && uv pip install -r requirements.txt
 
 # Run MCP server
-python scripts/run_filesys.py --root-dir ./workspace
+python backend/mcp/filesys/run_filesys.py --root-dir ./workspace
 # Windows:
 .venv\Scripts\activate
 # Linux/Mac:
