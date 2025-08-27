@@ -25,7 +25,9 @@ class TestFilesysMCPServerModes:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Start the server
             server_script = (
-                Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
+                Path(__file__).parent.parent.parent
+                / "scripts"
+                / "run_filesys_fastmcp.py"
             )
             # Use SYSTEM Python to test that the script handles environment setup
             # The script should detect it's not venv and re-execute with correct Python
@@ -112,7 +114,9 @@ class TestFilesysMCPServerModes:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Start the server in websocket mode
             server_script = (
-                Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
+                Path(__file__).parent.parent.parent
+                / "scripts"
+                / "run_filesys_fastmcp.py"
             )
             # Use SYSTEM Python to test that the script handles environment setup
             # The script should detect it's not venv and re-execute with correct Python
@@ -197,7 +201,9 @@ class TestFilesysMCPServerModes:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Start the server
             server_script = (
-                Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
+                Path(__file__).parent.parent.parent
+                / "scripts"
+                / "run_filesys_fastmcp.py"
             )
             # Use SYSTEM Python to test that the script handles environment setup
             proc = subprocess.Popen(
@@ -325,7 +331,9 @@ class TestFilesysMCPServerModes:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Start the server
             server_script = (
-                Path(__file__).parent.parent.parent / "scripts" / "run_filesys.py"
+                Path(__file__).parent.parent.parent
+                / "scripts"
+                / "run_filesys_fastmcp.py"
             )
             # Use SYSTEM Python to test that the script handles environment setup
             proc = subprocess.Popen(
