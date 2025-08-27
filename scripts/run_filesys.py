@@ -8,17 +8,13 @@ from pathlib import Path
 # Get module root
 MODULE_ROOT = Path(__file__).resolve().parent.parent
 
-# Add both files and base to path (base for utilities)
+# Add files and parent (for base imports) to path
 sys.path.insert(0, str(MODULE_ROOT))
-sys.path.insert(0, str(MODULE_ROOT.parent / "base"))
+sys.path.insert(0, str(MODULE_ROOT.parent))
 
 from base.backend.mcp.mcp_runner import MCPRunner  # noqa: E402
 
 from backend.mcp.filesys.server import FilesysMCPServer  # noqa: E402
-from backend.utils.path_utils import ModuleSetup  # noqa: E402
-
-# Ensure we're in the correct virtual environment
-ModuleSetup.ensure_running_in_venv(Path(__file__))
 
 
 async def main():
