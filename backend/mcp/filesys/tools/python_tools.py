@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Import file-based subprocess from base
+from base.backend.workers.file_subprocess import FileSubprocess
 from loguru import logger
 
 
@@ -81,43 +83,30 @@ async def python_run_tool(
         # Check if script is a file or code
         script_path = Path(script)
         if script_path.exists() and script_path.is_file():
-            # Execute file
+            # Execute file without unbuffered output flag (might be causing issues)
             cmd_args = [python_exe, str(script_path)]
         else:
-            # Execute code directly
+            # Execute code directly without unbuffered output flag
             cmd_args = [python_exe, "-c", script]
 
         # Add additional arguments
         if args:
             cmd_args.extend(args)
 
-        # Execute with timeout
-        process = await asyncio.create_subprocess_exec(
-            *cmd_args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(work_dir),
-        )
+        logger.debug(f"Executing command: {cmd_args}")
+        logger.debug(f"Working directory: {work_dir}")
 
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+        # Use file-based subprocess for reliable execution
+        executor = FileSubprocess(work_dir=work_dir)
+        result = await executor.run(cmd_args, timeout=timeout)
 
-            return {
-                "stdout": stdout.decode("utf-8", errors="replace"),
-                "stderr": stderr.decode("utf-8", errors="replace"),
-                "returncode": process.returncode,
-                "success": process.returncode == 0,
-            }
+        logger.debug(f"Subprocess completed with returncode={result.get('returncode')}")
 
-        except asyncio.TimeoutError:
-            process.kill()
-            await process.communicate()  # Clean up
-            return {
-                "error": f"Execution timed out after {timeout} seconds",
-                "timeout": True,
-            }
+        # Return result in expected format
+        if result.get("timeout"):
+            logger.warning(f"Python execution timed out after {timeout} seconds")
+
+        return result  # type: ignore[no-any-return]
 
     except Exception as e:
         logger.error(f"Python execution failed: {e}")
@@ -145,18 +134,23 @@ async def python_run_background_tool(
     """
     try:
         # Import here to avoid circular dependency
-        from base.backend.workers.base import ProcessWorkerPool
+        from base.backend.workers.base import WorkerPoolManager
+        from base.backend.workers.types import PoolConfig, PoolType
 
-        # Get or create pool instance
-        if not hasattr(python_run_background_tool, "_pool"):
-            python_run_background_tool._pool = ProcessWorkerPool(  # type: ignore[attr-defined]  # noqa: SLF001
+        # Get or create pool manager and pool
+        if not hasattr(python_run_background_tool, "_manager"):
+            python_run_background_tool._manager = WorkerPoolManager()  # type: ignore[attr-defined] # noqa: SLF001
+            config = PoolConfig(
+                name="FilesysPythonBgPool",
+                pool_type=PoolType.PROCESS,
+                max_workers=5,
                 min_workers=1,
-                max_workers=5,  # Cap at 5 processes
-                name="FilesysPythonPool",
             )
-            await python_run_background_tool._pool.start()  # type: ignore[attr-defined]  # noqa: SLF001
+            python_run_background_tool._pool = (  # type: ignore[attr-defined] # noqa: SLF001
+                await python_run_background_tool._manager.create_pool(config)  # type: ignore[attr-defined] # noqa: SLF001
+            )
 
-        pool = python_run_background_tool._pool  # type: ignore[attr-defined]  # noqa: SLF001
+        pool = python_run_background_tool._pool  # type: ignore[attr-defined] # noqa: SLF001
 
         # Submit task to pool
         task_id = await pool.acquire_worker(timeout=30)

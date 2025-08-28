@@ -160,15 +160,21 @@ async def git_diff_tool(
 
 
 async def git_history_tool(
-    root_dir: Path, repo_path: str | None = None, limit: int = 10, oneline: bool = False
+    root_dir: Path,
+    repo_path: str | None = None,
+    limit: int = 10,
+    oneline: bool = False,
+    grep: str | None = None,
 ) -> dict[str, Any]:
-    """Show commit history."""
-    logger.debug(f"Getting history: repo_path={repo_path}, limit={limit}")
+    """Show commit history with optional grep filtering."""
+    logger.debug(f"Getting history: repo_path={repo_path}, limit={limit}, grep={grep}")
 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
         cmd = ["git", "log", f"-{limit}"]
+        if grep:
+            cmd.extend(["--grep", grep])
         if oneline:
             cmd.append("--oneline")
 
