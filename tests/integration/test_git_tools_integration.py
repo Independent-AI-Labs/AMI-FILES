@@ -187,7 +187,8 @@ class TestGitEdgeCasesDirect:
             files=["nonexistent.txt"],
         )
         assert "error" in result
-        assert "Failed to stage" in result["error"]
+        # Git will return an error about pathspec not matching any files
+        assert "pathspec" in result["error"] or "did not match" in result["error"]
 
     @pytest.mark.asyncio
     async def test_commit_with_no_changes(self, git_repo):
