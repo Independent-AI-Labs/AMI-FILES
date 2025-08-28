@@ -1,6 +1,7 @@
 """Integration tests for Python execution tools."""
 
 import asyncio
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -55,7 +56,13 @@ class TestPythonExecution:
                     )
 
                     assert result.content[0].text is not None
-                    response = eval(result.content[0].text)  # noqa: S307
+                    # FastMCP returns JSON string of the tool result
+                    print(f"RESPONSE: {result.content[0].text!r}")
+                    response = json.loads(result.content[0].text)
+
+                    # Check if it's a timeout error
+                    if "error" in response and "timeout" in response:
+                        raise AssertionError(f"Python execution timed out: {response}")
                     assert response["success"] is True
                     assert "Hello, World!" in response["stdout"]
                     assert response["returncode"] == 0
@@ -78,7 +85,7 @@ class TestPythonExecution:
                         },
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert response["returncode"] != 0
                     assert "ValueError: Test error" in response["stderr"]
@@ -101,7 +108,7 @@ class TestPythonExecution:
                         },
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert "error" in response
                     assert "timeout" in response.get(
                         "error", ""
@@ -136,7 +143,7 @@ sys.exit(0)
                     arguments={"script": str(script_file), "timeout": 5},
                 )
 
-                response = eval(result.content[0].text)  # noqa: S307
+                response = json.loads(result.content[0].text)
                 assert response["success"] is True
                 assert "Script executed successfully" in response["stdout"]
                 assert response["returncode"] == 0
@@ -164,7 +171,7 @@ print("Arguments:", sys.argv[1:])
                         },
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert "['arg1', 'arg2', 'arg3']" in response["stdout"]
 
@@ -200,7 +207,7 @@ print("Files:", os.listdir('.'))
                     arguments={"script": script, "cwd": "subdir", "timeout": 5},
                 )
 
-                response = eval(result.content[0].text)  # noqa: S307
+                response = json.loads(result.content[0].text)
                 assert response["success"] is True
                 assert "test.txt" in response["stdout"]
 
@@ -220,7 +227,7 @@ print("Files:", os.listdir('.'))
                         arguments={"script": script, "python": "system", "timeout": 5},
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert "python" in response["stdout"].lower()
 
@@ -241,7 +248,7 @@ print("Files:", os.listdir('.'))
                         arguments={"script": script, "python": "venv", "timeout": 5},
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     # Should use venv or fall back to system
                     assert "python" in response["stdout"].lower()
@@ -265,7 +272,7 @@ print("Done")
                         "python_run", arguments={"script": script, "timeout": 5}
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     for i in range(1, 6):
                         assert f"Line {i}" in response["stdout"]
@@ -293,7 +300,7 @@ print(json.dumps(data))
                         "python_run", arguments={"script": script, "timeout": 5}
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert "timestamp" in response["stdout"]
                     assert "pid" in response["stdout"]
@@ -340,7 +347,7 @@ class TestPythonErrorHandling:
                         arguments={"script": "print('unclosed", "timeout": 5},
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert "SyntaxError" in response["stderr"]
 
@@ -359,7 +366,7 @@ class TestPythonErrorHandling:
                         arguments={"script": "import nonexistent_module", "timeout": 5},
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert (
                         "ModuleNotFoundError" in response["stderr"]
@@ -387,7 +394,7 @@ print(result)
                         "python_run", arguments={"script": script, "timeout": 5}
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert "ZeroDivisionError" in response["stderr"]
 
@@ -410,7 +417,7 @@ print(result)
                         },
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert "error" in response
 
     @pytest.mark.asyncio
@@ -428,7 +435,7 @@ print(result)
                         arguments={"script": "/nonexistent/script.py", "timeout": 5},
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     # Should either fail to find the file or execute it as code
                     if response.get("success"):
                         # Treated as code, should fail
@@ -492,7 +499,7 @@ with open('output.txt', 'r') as f:
                     "python_run", arguments={"script": script, "timeout": 5}
                 )
 
-                response = eval(result.content[0].text)  # noqa: S307
+                response = json.loads(result.content[0].text)
                 assert response["success"] is True
                 assert "File content: Test output" in response["stdout"]
 
@@ -522,7 +529,7 @@ with open('output.txt', 'r') as f:
                     results = await asyncio.gather(*tasks)
 
                     for i, result in enumerate(results):
-                        response = eval(result.content[0].text)  # noqa: S307
+                        response = json.loads(result.content[0].text)
                         assert response["success"] is True
                         assert f"Result {i}" in response["stdout"]
 
@@ -544,7 +551,7 @@ for i in range(1000):
                         "python_run", arguments={"script": script, "timeout": 10}
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert "Line 0:" in response["stdout"]
                     assert "Line 999:" in response["stdout"]
@@ -570,7 +577,7 @@ sys.stderr.write("Error output 2\\n")
                         "python_run", arguments={"script": script, "timeout": 5}
                     )
 
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert "Normal output 1" in response["stdout"]
                     assert "Normal output 2" in response["stdout"]
@@ -592,7 +599,7 @@ sys.stderr.write("Error output 2\\n")
                         "python_run",
                         arguments={"script": "import sys; sys.exit(0)", "timeout": 5},
                     )
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is True
                     assert response["returncode"] == 0
 
@@ -601,7 +608,7 @@ sys.stderr.write("Error output 2\\n")
                         "python_run",
                         arguments={"script": "import sys; sys.exit(1)", "timeout": 5},
                     )
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert response["returncode"] == 1
 
@@ -610,6 +617,6 @@ sys.stderr.write("Error output 2\\n")
                         "python_run",
                         arguments={"script": "import sys; sys.exit(42)", "timeout": 5},
                     )
-                    response = eval(result.content[0].text)  # noqa: S307
+                    response = json.loads(result.content[0].text)
                     assert response["success"] is False
                     assert response["returncode"] == 42
