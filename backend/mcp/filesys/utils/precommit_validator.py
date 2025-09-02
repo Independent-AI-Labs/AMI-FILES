@@ -6,9 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from files.backend.config import files_config
+from files.backend.mcp.filesys.utils.file_utils import FileUtils
 from loguru import logger
-
-from .file_utils import FileUtils
 
 
 class PreCommitValidator:
@@ -18,7 +18,7 @@ class PreCommitValidator:
         """Initialize the validator."""
         self.enabled: bool = True
         self.skip_on_missing: bool = True
-        self.max_file_size_kb: int | float = 1024
+        self.max_file_size_kb: int | float = files_config.get_max_file_size_kb()
 
     def _check_precommit_available(self) -> bool:
         """Check if pre-commit is installed and configured.
@@ -32,7 +32,7 @@ class PreCommitValidator:
                 ["pre-commit", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=files_config.get_precommit_timeout("version_check"),
             )
             if result.returncode != 0:
                 return False
@@ -47,7 +47,8 @@ class PreCommitValidator:
 
             return False
 
-        except (subprocess.SubprocessError, FileNotFoundError):
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            logger.debug(f"Pre-commit availability check failed: {e}")
             return False
 
     def _find_git_root(self) -> Path | None:
@@ -182,7 +183,7 @@ class PreCommitValidator:
                     cwd=git_root,
                     capture_output=True,
                     text=True,
-                    timeout=30,
+                    timeout=files_config.get_precommit_timeout("validation_run"),
                 )
 
                 # Check if hooks modified the file
@@ -217,7 +218,7 @@ class PreCommitValidator:
                             cwd=git_root,
                             capture_output=True,
                             text=True,
-                            timeout=30,
+                            timeout=files_config.get_precommit_timeout("recheck_run"),
                         )
 
                         if recheck.returncode == 0:

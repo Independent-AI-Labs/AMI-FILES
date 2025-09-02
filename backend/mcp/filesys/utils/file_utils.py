@@ -9,6 +9,7 @@ from pathlib import Path
 from quopri import decodestring, encodestring
 from typing import Any
 
+from files.backend.config import files_config
 from loguru import logger
 
 
@@ -39,8 +40,12 @@ class OutputFormat(Enum):
 class FileUtils:
     """Provides file manipulation utilities."""
 
-    max_file_size = 100 * 1024 * 1024  # 100MB limit
     _source_extensions: set[str] | None = None  # Cache for source code extensions
+
+    @classmethod
+    def get_max_file_size(cls) -> int:
+        """Get maximum file size from configuration."""
+        return files_config.get_max_file_size_bytes()
 
     @classmethod
     def _load_source_extensions(cls) -> set[str]:
@@ -357,9 +362,10 @@ class FileUtils:
         """
         if file_path.exists():
             size = file_path.stat().st_size
-            if size > FileUtils.max_file_size:
+            max_size = FileUtils.get_max_file_size()
+            if size > max_size:
                 raise ValueError(
-                    f"File too large: {size} bytes (max: {FileUtils.max_file_size} bytes)"
+                    f"File too large: {size} bytes (max: {max_size} bytes)"
                 )
 
     @staticmethod
