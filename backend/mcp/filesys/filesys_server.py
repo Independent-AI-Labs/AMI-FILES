@@ -1,7 +1,7 @@
 """Filesystem MCP server using FastMCP."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 # Use standard import setup
 from base.backend.utils.standard_imports import setup_imports
@@ -53,7 +53,7 @@ class FilesysFastMCPServer:
 
     def __init__(
         self, root_dir: str | None = None, config: dict[str, Any] | None = None
-    ):
+    ) -> None:
         """Initialize Filesystem FastMCP server.
 
         Args:
@@ -80,7 +80,7 @@ class FilesysFastMCPServer:
 
         logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}")
 
-    def _register_tools(self):
+    def _register_tools(self) -> None:
         """Register filesystem tools with FastMCP."""
 
         # File system tools
@@ -255,10 +255,15 @@ class FilesysFastMCPServer:
 
         @self.mcp.tool(description="Show commit history")
         async def git_history(
-            repo_path: str | None = None, limit: int = 10, oneline: bool = False
+            repo_path: str | None = None,
+            limit: int = 10,
+            oneline: bool = False,
+            grep: str | None = None,
         ) -> dict[str, Any]:
             """Show history."""
-            return await git_history_tool(self.root_dir, repo_path, limit, oneline)
+            return await git_history_tool(
+                self.root_dir, repo_path, limit, oneline, grep
+            )
 
         @self.mcp.tool(description="Restore files")
         async def git_restore(
@@ -382,10 +387,12 @@ class FilesysFastMCPServer:
                 path, instruction, perform_ocr, extract_chart_data
             )
 
-    def run(self, transport: str = "stdio"):
+    def run(
+        self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
+    ) -> None:
         """Run the server.
 
         Args:
             transport: Transport type (stdio, sse, or streamable-http)
         """
-        self.mcp.run(transport=transport)  # type: ignore[arg-type]
+        self.mcp.run(transport=transport)

@@ -1,5 +1,6 @@
 """Unit tests for git tools in filesystem MCP server."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,7 +40,7 @@ from files.backend.mcp.filesys.tools.git_tools import (
 
 
 @pytest.fixture
-def mock_root_dir(tmp_path):
+def mock_root_dir(tmp_path: Path) -> Path:
     """Create a mock root directory."""
     return tmp_path
 
@@ -48,7 +49,7 @@ class TestGitStatus:
     """Test git_status handler."""
 
     @pytest.mark.asyncio
-    async def test_git_status_basic(self, mock_root_dir):
+    async def test_git_status_basic(self, mock_root_dir: Path) -> None:
         """Test basic git status functionality."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -65,7 +66,7 @@ class TestGitStatus:
             assert "main" in result["output"]
 
     @pytest.mark.asyncio
-    async def test_git_status_short_format(self, mock_root_dir):
+    async def test_git_status_short_format(self, mock_root_dir: Path) -> None:
         """Test git status with short format."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -85,7 +86,7 @@ class TestGitStatus:
             assert "file2.txt" in result["output"]
 
     @pytest.mark.asyncio
-    async def test_git_status_with_repo_path(self, mock_root_dir):
+    async def test_git_status_with_repo_path(self, mock_root_dir: Path) -> None:
         """Test git status with repo_path parameter."""
         # Create a subdirectory to act as repo
         repo_dir = mock_root_dir / "my_repo"
@@ -109,7 +110,7 @@ class TestGitStage:
     """Test git_stage handler."""
 
     @pytest.mark.asyncio
-    async def test_stage_files_success(self, mock_root_dir):
+    async def test_stage_files_success(self, mock_root_dir: Path) -> None:
         """Test successful file staging."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -120,7 +121,7 @@ class TestGitStage:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_stage_with_repo_path(self, mock_root_dir):
+    async def test_stage_with_repo_path(self, mock_root_dir: Path) -> None:
         """Test staging with repo_path parameter."""
         # Create a subdirectory to act as repo
         repo_dir = mock_root_dir / "submodule"
@@ -139,7 +140,7 @@ class TestGitStage:
             assert mock_run.call_args[1]["cwd"] == repo_dir
 
     @pytest.mark.asyncio
-    async def test_stage_with_force(self, mock_root_dir):
+    async def test_stage_with_force(self, mock_root_dir: Path) -> None:
         """Test staging with force option - note: force param doesn't exist in implementation."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -151,7 +152,7 @@ class TestGitStage:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_stage_failure(self, mock_root_dir):
+    async def test_stage_failure(self, mock_root_dir: Path) -> None:
         """Test failed staging."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -169,7 +170,7 @@ class TestGitUnstage:
     """Test git_unstage handler."""
 
     @pytest.mark.asyncio
-    async def test_unstage_files_success(self, mock_root_dir):
+    async def test_unstage_files_success(self, mock_root_dir: Path) -> None:
         """Test successful file unstaging."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -184,7 +185,7 @@ class TestGitUnstage:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_unstage_all(self, mock_root_dir):
+    async def test_unstage_all(self, mock_root_dir: Path) -> None:
         """Test unstaging all files."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -199,7 +200,7 @@ class TestGitCommit:
     """Test git_commit handler."""
 
     @pytest.mark.asyncio
-    async def test_commit_success(self, mock_root_dir):
+    async def test_commit_success(self, mock_root_dir: Path) -> None:
         """Test successful commit."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -215,7 +216,7 @@ class TestGitCommit:
             assert "output" in result
 
     @pytest.mark.asyncio
-    async def test_commit_nothing_to_commit(self, mock_root_dir):
+    async def test_commit_nothing_to_commit(self, mock_root_dir: Path) -> None:
         """Test commit with nothing staged."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -229,7 +230,7 @@ class TestGitCommit:
             assert "error" in result
 
     @pytest.mark.asyncio
-    async def test_commit_with_amend(self, mock_root_dir):
+    async def test_commit_with_amend(self, mock_root_dir: Path) -> None:
         """Test amending a commit."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -257,7 +258,7 @@ class TestGitDiff:
     """Test git_diff handler."""
 
     @pytest.mark.asyncio
-    async def test_diff_working_changes(self, mock_root_dir):
+    async def test_diff_working_changes(self, mock_root_dir: Path) -> None:
         """Test diff of working changes."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -274,7 +275,7 @@ class TestGitDiff:
             assert "+added line" in result["diff"]
 
     @pytest.mark.asyncio
-    async def test_diff_staged_changes(self, mock_root_dir):
+    async def test_diff_staged_changes(self, mock_root_dir: Path) -> None:
         """Test diff of staged changes."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -299,7 +300,7 @@ class TestGitDiff:
             )
 
     @pytest.mark.asyncio
-    async def test_diff_no_changes(self, mock_root_dir):
+    async def test_diff_no_changes(self, mock_root_dir: Path) -> None:
         """Test diff with no changes."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -315,7 +316,7 @@ class TestGitHistory:
     """Test git_history handler."""
 
     @pytest.mark.asyncio
-    async def test_history_oneline(self, mock_root_dir):
+    async def test_history_oneline(self, mock_root_dir: Path) -> None:
         """Test history in oneline format."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -333,7 +334,7 @@ class TestGitHistory:
             assert "Initial commit" in result["history"]
 
     @pytest.mark.asyncio
-    async def test_history_detailed(self, mock_root_dir):
+    async def test_history_detailed(self, mock_root_dir: Path) -> None:
         """Test history with detailed format."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -351,7 +352,7 @@ class TestGitHistory:
             assert "John Doe" in result["history"]
 
     @pytest.mark.asyncio
-    async def test_history_no_commits(self, mock_root_dir):
+    async def test_history_no_commits(self, mock_root_dir: Path) -> None:
         """Test history with no commits."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -369,7 +370,7 @@ class TestGitRestore:
     """Test git_restore handler."""
 
     @pytest.mark.asyncio
-    async def test_restore_files(self, mock_root_dir):
+    async def test_restore_files(self, mock_root_dir: Path) -> None:
         """Test restoring files."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -380,7 +381,7 @@ class TestGitRestore:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_restore_from_source(self, mock_root_dir):
+    async def test_restore_from_source(self, mock_root_dir: Path) -> None:
         """Test restoring from staged."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -391,7 +392,7 @@ class TestGitRestore:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_restore_fallback_to_checkout(self, mock_root_dir):
+    async def test_restore_fallback_to_checkout(self, mock_root_dir: Path) -> None:
         """Test restore failure."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -410,7 +411,7 @@ class TestGitFetch:
     """Test git_fetch handler."""
 
     @pytest.mark.asyncio
-    async def test_fetch_origin(self, mock_root_dir):
+    async def test_fetch_origin(self, mock_root_dir: Path) -> None:
         """Test fetching from origin."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -425,7 +426,7 @@ class TestGitFetch:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_fetch_all_remotes(self, mock_root_dir):
+    async def test_fetch_all_remotes(self, mock_root_dir: Path) -> None:
         """Test fetching all remotes."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -448,7 +449,7 @@ class TestGitPull:
     """Test git_pull handler."""
 
     @pytest.mark.asyncio
-    async def test_pull_success(self, mock_root_dir):
+    async def test_pull_success(self, mock_root_dir: Path) -> None:
         """Test successful pull."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -463,7 +464,7 @@ class TestGitPull:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_pull_with_conflicts(self, mock_root_dir):
+    async def test_pull_with_conflicts(self, mock_root_dir: Path) -> None:
         """Test pull with conflicts."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -477,7 +478,7 @@ class TestGitPull:
             assert "error" in result
 
     @pytest.mark.asyncio
-    async def test_pull_with_rebase(self, mock_root_dir):
+    async def test_pull_with_rebase(self, mock_root_dir: Path) -> None:
         """Test pull with rebase."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -500,7 +501,7 @@ class TestGitPush:
     """Test git_push handler."""
 
     @pytest.mark.asyncio
-    async def test_push_success(self, mock_root_dir):
+    async def test_push_success(self, mock_root_dir: Path) -> None:
         """Test successful push."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -515,7 +516,7 @@ class TestGitPush:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_push_up_to_date(self, mock_root_dir):
+    async def test_push_up_to_date(self, mock_root_dir: Path) -> None:
         """Test push when already up to date."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
@@ -530,7 +531,7 @@ class TestGitPush:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_push_with_force(self, mock_root_dir):
+    async def test_push_with_force(self, mock_root_dir: Path) -> None:
         """Test force push."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -549,7 +550,7 @@ class TestGitPush:
             )
 
     @pytest.mark.asyncio
-    async def test_push_dry_run(self, mock_root_dir):
+    async def test_push_dry_run(self, mock_root_dir: Path) -> None:
         """Test push dry run - note: dry_run param doesn't exist in implementation."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -565,7 +566,7 @@ class TestGitMergeAbort:
     """Test git_merge_abort handler."""
 
     @pytest.mark.asyncio
-    async def test_merge_abort_success(self, mock_root_dir):
+    async def test_merge_abort_success(self, mock_root_dir: Path) -> None:
         """Test successful merge abort."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -576,7 +577,7 @@ class TestGitMergeAbort:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_merge_abort_no_merge(self, mock_root_dir):
+    async def test_merge_abort_no_merge(self, mock_root_dir: Path) -> None:
         """Test abort when no merge in progress."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(

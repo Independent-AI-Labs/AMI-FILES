@@ -40,7 +40,7 @@ class FileUtils:
     """Provides file manipulation utilities."""
 
     max_file_size = 100 * 1024 * 1024  # 100MB limit
-    _source_extensions = None  # Cache for source code extensions
+    _source_extensions: set[str] | None = None  # Cache for source code extensions
 
     @classmethod
     def _load_source_extensions(cls) -> set[str]:
@@ -49,9 +49,12 @@ class FileUtils:
         Returns:
             Set of source code file extensions
         """
+        # Return cached extensions if available
         if cls._source_extensions is not None:
             return cls._source_extensions
 
+        # Try to load from config file
+        extensions: set[str] = set()
         try:
             config_path = (
                 Path(__file__).parent.parent.parent.parent.parent
@@ -61,7 +64,6 @@ class FileUtils:
             with config_path.open() as f:
                 data = json.load(f)
 
-            extensions = set()
             # Add programming language extensions
             for lang_exts in data.get("text_files", {}).get("programming", {}).values():
                 extensions.update(lang_exts)
@@ -69,12 +71,10 @@ class FileUtils:
             for lang_exts in data.get("text_files", {}).get("web", {}).values():
                 extensions.update(lang_exts)
 
-            cls._source_extensions = extensions
-            return extensions
         except (OSError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Failed to load source extensions config: {e}")
             # Fall back to common extensions
-            cls._source_extensions = {
+            extensions = {
                 ".py",
                 ".js",
                 ".ts",
@@ -107,7 +107,10 @@ class FileUtils:
                 ".zsh",
                 ".fish",
             }
-            return cls._source_extensions
+
+        # Cache and return extensions
+        cls._source_extensions = extensions
+        return cls._source_extensions
 
     @classmethod
     def is_source_code_file(cls, file_path: Path) -> bool:
@@ -121,6 +124,20 @@ class FileUtils:
         """
         extensions = cls._load_source_extensions()
         return file_path.suffix.lower() in extensions
+
+    @classmethod
+    def get_source_extensions(cls) -> set[str]:
+        """Get the set of source code file extensions.
+
+        Returns:
+            Set of source code file extensions
+        """
+        return cls._load_source_extensions()
+
+    @classmethod
+    def clear_extensions_cache(cls) -> None:
+        """Clear the cached source extensions to force reload."""
+        cls._source_extensions = None
 
     @staticmethod
     def is_text_file(file_path: Path) -> bool:

@@ -1,6 +1,7 @@
 """Document processing handlers for MCP server."""
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -18,6 +19,7 @@ from files.backend.models.document import (
     DocumentSection,
     DocumentTable,
 )
+from files.backend.services.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,9 @@ async def index_document_tool(
             processing_time_ms=extraction_result.processing_time_ms,
         )
 
+        # Ensure document has an ID
+        assert document.id is not None, "Document should have an ID from StorageModel"
+
         # Process and store sections
         section_ids = []
         for section_data in extraction_result.sections:
@@ -104,7 +109,7 @@ async def index_document_tool(
                     name=table_data.get("name"),
                     headers=table_data["headers"],
                     rows=table_data["rows"],
-                    schema=table_data.get("schema", {}),
+                    table_schema=table_data.get("schema", {}),
                 )
                 # Store table (would use UnifiedCRUD in real implementation)
                 table_ids.append(table.id)
@@ -290,20 +295,53 @@ async def read_image_tool(
         if extraction_result.full_text:
             result["extracted_text"] = extraction_result.full_text
 
-        # Placeholder for Gemini integration
+        # Gemini integration (optional)
         if instruction:
             result["analysis_instruction"] = instruction
-            result["analysis_result"] = {
-                "status": "pending",
-                "message": "Gemini integration not yet implemented. Will analyze with instruction: "
-                + instruction,
-            }
 
-            if extract_chart_data:
-                result["chart_data"] = {
-                    "status": "pending",
-                    "message": "Chart data extraction will be performed via Gemini",
+            # Check if Gemini is configured
+            gemini_api_key = os.environ.get("GEMINI_API_KEY")
+            if not gemini_api_key:
+                result["analysis_result"] = {
+                    "status": "unavailable",
+                    "message": "Gemini API key not configured. Set GEMINI_API_KEY environment variable to enable image analysis.",
                 }
+                if extract_chart_data:
+                    result["chart_data"] = {
+                        "status": "unavailable",
+                        "message": "Chart data extraction requires Gemini API key to be configured.",
+                    }
+            else:
+                # Use Gemini for analysis
+                try:
+                    async with GeminiClient(gemini_api_key) as client:
+                        if extract_chart_data:
+                            # Extract chart data
+                            chart_analysis = await client.extract_chart_data(file_path)
+                            result["chart_data"] = {
+                                "status": "success",
+                                "data": chart_analysis,
+                            }
+                        else:
+                            # General image analysis
+                            analysis = await client.analyze_image(
+                                file_path, instruction
+                            )
+                            result["analysis_result"] = {
+                                "status": "success",
+                                "data": analysis,
+                            }
+                except Exception as e:
+                    logger.exception(f"Gemini analysis failed for {path}")
+                    result["analysis_result"] = {
+                        "status": "error",
+                        "message": f"Gemini analysis failed: {e!s}",
+                    }
+                    if extract_chart_data:
+                        result["chart_data"] = {
+                            "status": "error",
+                            "message": f"Chart data extraction failed: {e!s}",
+                        }
 
         if extraction_result.warnings:
             result["warnings"] = extraction_result.warnings

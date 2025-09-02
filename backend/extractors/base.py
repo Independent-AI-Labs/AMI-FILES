@@ -220,7 +220,7 @@ class DocumentExtractor(ABC):
 
             # Check for dates
             if data_type == "text":
-                from datetime import datetime
+                from datetime import datetime, timezone
 
                 date_patterns = [
                     "%Y-%m-%d",
@@ -232,16 +232,17 @@ class DocumentExtractor(ABC):
 
                 for pattern in date_patterns:
                     try:
-                        all_dates = all(
-                            datetime.strptime(str(v), pattern)  # noqa: DTZ007
-                            is not None
-                            for v in values
-                            if v
-                        )
-                        if all_dates:
-                            data_type = "datetime"
-                            break
-                    except Exception:
+                        # Test if all values match this date pattern
+                        for v in values:
+                            if v:
+                                # Parse and make timezone-aware for DTZ compliance
+                                datetime.strptime(str(v), pattern).replace(
+                                    tzinfo=timezone.utc
+                                )
+                        # If we get here, all values matched the pattern
+                        data_type = "datetime"
+                        break
+                    except ValueError:
                         logger.debug(f"Date pattern {pattern} did not match")
 
             # Check for booleans

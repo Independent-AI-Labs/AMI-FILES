@@ -99,7 +99,7 @@ class PDFExtractor(DocumentExtractor):
         result.processing_time_ms = int((time.time() - start_time) * 1000)
         return result
 
-    async def _extract_tables_with_pymupdf(self, pdf) -> list[dict[str, Any]]:
+    async def _extract_tables_with_pymupdf(self, pdf: Any) -> list[dict[str, Any]]:
         """Extract tables using PyMuPDF"""
         tables = []
 
@@ -147,7 +147,7 @@ class PDFExtractor(DocumentExtractor):
 
         return tables
 
-    async def _extract_images_with_pymupdf(self, pdf) -> list[dict[str, Any]]:
+    async def _extract_images_with_pymupdf(self, pdf: Any) -> list[dict[str, Any]]:
         """Extract images from PDF using PyMuPDF"""
         images = []
 
