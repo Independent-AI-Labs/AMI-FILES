@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Generator
 
 import pytest
 from files.backend.mcp.filesys.filesys_server import (
@@ -13,17 +14,17 @@ class TestFilesysMCPServer:
     """Test Filesystem MCP Server initialization and configuration."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for testing."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
 
     @pytest.fixture
-    def server(self, temp_dir):
+    def server(self, temp_dir: Path) -> FilesysMCPServer:
         """Create a test server instance."""
         return FilesysMCPServer(root_dir=str(temp_dir))
 
-    def test_server_initialization(self, temp_dir):
+    def test_server_initialization(self, temp_dir: Path) -> None:
         """Test server initializes correctly."""
         server = FilesysMCPServer(root_dir=str(temp_dir))
         # Compare resolved paths to handle symlinks properly
@@ -31,14 +32,14 @@ class TestFilesysMCPServer:
         assert server.mcp is not None
         assert server.mcp.name == "FilesysMCPServer"
 
-    def test_server_initialization_invalid_root(self):
+    def test_server_initialization_invalid_root(self) -> None:
         """Test server initialization with invalid root directory."""
         with pytest.raises(ValueError, match="Root directory does not exist"):
             FilesysMCPServer(
                 root_dir="/definitely/nonexistent/path/that/should/not/exist/anywhere"
             )
 
-    def test_server_initialization_file_as_root(self, temp_dir):
+    def test_server_initialization_file_as_root(self, temp_dir: Path) -> None:
         """Test server initialization with file as root directory."""
         test_file = temp_dir / "test.txt"
         test_file.write_text("test")
@@ -46,7 +47,7 @@ class TestFilesysMCPServer:
         with pytest.raises(ValueError, match="Root path is not a directory"):
             FilesysMCPServer(root_dir=str(test_file))
 
-    def test_tools_registered(self, server):
+    def test_tools_registered(self, server: FilesysMCPServer) -> None:
         """Test that all expected tools are registered with FastMCP."""
         # Get the FastMCP server instance
         mcp = server.mcp
@@ -61,7 +62,7 @@ class TestFilesysMCPServer:
         assert hasattr(server, "root_dir")
         assert hasattr(server, "mcp")
 
-    def test_server_with_custom_config(self, temp_dir):
+    def test_server_with_custom_config(self, temp_dir: Path) -> None:
         """Test server initialization with custom configuration."""
         config = {
             "max_file_size": 10485760,  # 10MB
@@ -72,7 +73,7 @@ class TestFilesysMCPServer:
         assert server.config == config
         assert server.root_dir.resolve() == temp_dir.resolve()
 
-    def test_multiple_server_instances(self, temp_dir):
+    def test_multiple_server_instances(self, temp_dir: Path) -> None:
         """Test creating multiple server instances."""
         server1 = FilesysMCPServer(root_dir=str(temp_dir))
         server2 = FilesysMCPServer(root_dir=str(temp_dir))
@@ -81,7 +82,7 @@ class TestFilesysMCPServer:
         assert server1.mcp is not server2.mcp
         assert server1.root_dir == server2.root_dir
 
-    def test_server_root_directory_resolution(self):
+    def test_server_root_directory_resolution(self) -> None:
         """Test that server properly resolves relative paths."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a subdirectory
@@ -99,7 +100,7 @@ class TestFilesysMCPServer:
             finally:
                 os.chdir(original_cwd)
 
-    def test_server_run_method_exists(self, server):
+    def test_server_run_method_exists(self, server: FilesysMCPServer) -> None:
         """Test that server has run method for starting the server."""
         assert hasattr(server, "run")
         assert callable(server.run)

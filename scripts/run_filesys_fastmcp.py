@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path
 
-# Add module paths
+# Add files and base to path
 MODULE_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(MODULE_ROOT))
 sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
@@ -12,7 +12,7 @@ sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
 from backend.mcp.filesys.filesys_server import FilesysFastMCPServer  # noqa: E402
 
 
-def main():
+def main() -> None:
     """Run the Filesys FastMCP server."""
     import argparse
 

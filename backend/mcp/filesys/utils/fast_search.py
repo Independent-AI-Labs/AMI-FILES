@@ -23,7 +23,7 @@ class FastFileSearcher:
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self._load_text_extensions()
 
-    def _load_text_extensions(self):
+    def _load_text_extensions(self) -> None:
         """Load text file extensions from resource file."""
         try:
             res_path = (
@@ -326,6 +326,6 @@ class FastFileSearcher:
 
         return all_results[:max_results]
 
-    def close(self):
+    def close(self) -> None:
         """Clean up the thread pool."""
         self.executor.shutdown(wait=False)

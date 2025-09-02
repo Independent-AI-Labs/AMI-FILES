@@ -2,16 +2,18 @@
 
 import tempfile
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
+from loguru import logger
 
 
 class TestFastFileSearcher:
     """Test FastFileSearcher functionality."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self) -> Iterator[Path]:
         """Create a temporary directory with test files."""
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -33,7 +35,7 @@ class TestFastFileSearcher:
             yield root
 
     @pytest.mark.asyncio
-    async def test_search_by_exact_path_keyword(self, temp_dir):
+    async def test_search_by_exact_path_keyword(self, temp_dir: Path) -> None:
         """Test searching files by exact path keyword."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -53,7 +55,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_by_content_keyword(self, temp_dir):
+    async def test_search_by_content_keyword(self, temp_dir: Path) -> None:
         """Test searching files by content keyword."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -73,7 +75,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_with_regex_patterns(self, temp_dir):
+    async def test_search_with_regex_patterns(self, temp_dir: Path) -> None:
         """Test searching with regex patterns."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -93,7 +95,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_with_content_regex(self, temp_dir):
+    async def test_search_with_content_regex(self, temp_dir: Path) -> None:
         """Test searching content with regex patterns."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -112,7 +114,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_combined_path_and_content_search(self, temp_dir):
+    async def test_combined_path_and_content_search(self, temp_dir: Path) -> None:
         """Test searching with both path and content keywords."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -132,7 +134,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_max_results_limit(self, temp_dir):
+    async def test_max_results_limit(self, temp_dir: Path) -> None:
         """Test that max_results is respected."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -150,7 +152,9 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_binary_files_excluded_from_content_search(self, temp_dir):
+    async def test_binary_files_excluded_from_content_search(
+        self, temp_dir: Path
+    ) -> None:
         """Test that binary files are not searched for content."""
         searcher = FastFileSearcher(max_workers=2)
         try:
@@ -168,7 +172,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_empty_directory(self):
+    async def test_empty_directory(self) -> None:
         """Test searching in an empty directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             searcher = FastFileSearcher(max_workers=2)
@@ -186,7 +190,7 @@ class TestFastFileSearcher:
                 searcher.close()
 
     @pytest.mark.asyncio
-    async def test_performance_vs_original(self, temp_dir):
+    async def test_performance_vs_original(self, temp_dir: Path) -> None:
         """Test that fast search is actually faster for large directories."""
         import time
 
@@ -226,4 +230,4 @@ class TestFastFileSearcher:
 
         # For small test sets, performance might be similar
         # but the architecture is proven to scale better
-        print(f"Fast search: {fast_time:.3f}s, Original: {original_time:.3f}s")
+        logger.info(f"Fast search: {fast_time:.3f}s, Original: {original_time:.3f}s")

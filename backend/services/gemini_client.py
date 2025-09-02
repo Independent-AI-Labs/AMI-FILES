@@ -101,8 +101,11 @@ class GeminiClient:
 
         url = f"{self.BASE_URL}/models/{self.model}:{endpoint}?key={self.api_key}"
 
+        # Assert session is not None (guaranteed by connect() call above)
+        assert self.session is not None
+
         try:
-            async with self.session.post(  # type: ignore[union-attr]
+            async with self.session.post(
                 url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
             ) as response:
                 if response.status == 200:

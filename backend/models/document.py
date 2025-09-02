@@ -2,36 +2,28 @@
 Document models for intelligent document processing
 """
 
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Any, ClassVar
 
-# Set up module imports using the STANDARD way
-current_file = Path(__file__).resolve()
-orchestrator_root = current_file
-while orchestrator_root != orchestrator_root.parent:
-    if (orchestrator_root / ".git").exists() and (orchestrator_root / "base").exists():
-        break
-    orchestrator_root = orchestrator_root.parent
-sys.path.insert(0, str(orchestrator_root))
+# Use standard import setup
+from base.backend.utils.standard_imports import setup_imports
+
+ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
 
 from base.backend.config.loader import storage_config  # noqa: E402
-from base.backend.dataops.storage_model import StorageModel  # noqa: E402
-from base.backend.dataops.storage_types import StorageConfig  # noqa: E402
+from base.backend.dataops.models.base_model import StorageModel  # noqa: E402
+from base.backend.dataops.models.storage_config import StorageConfig  # noqa: E402
 from pydantic import Field  # noqa: E402
 
 
 class Document(StorageModel):
     """Main document model with multi-storage configurations"""
 
-    # Document identification
-    id: str | None = Field(default=None)
+    # Document identification (id inherited from StorageModel)
     file_path: str
     file_type: str
     file_size: int
-    created_at: datetime | None = Field(default_factory=datetime.utcnow)
-    modified_at: datetime | None = Field(default_factory=datetime.utcnow)
+    # created_at and modified_at inherited from SecuredModelMixin
     indexed_at: datetime | None = Field(default_factory=datetime.utcnow)
 
     # Metadata
@@ -81,7 +73,7 @@ class Document(StorageModel):
 
     def to_storage_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage with proper serialization"""
-        data = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict()
 
         # Additional serialization for document-specific fields
         if self.keywords:
@@ -99,13 +91,13 @@ class Document(StorageModel):
         if self.error_messages:
             data["error_messages"] = list(self.error_messages)
 
-        return data  # type: ignore[no-any-return]
+        return data
 
 
 class DocumentSection(StorageModel):
     """Document section with hierarchical structure"""
 
-    id: str | None = Field(default=None)
+    # id inherited from StorageModel
     document_id: str
     parent_section_id: str | None = None
 
@@ -122,9 +114,7 @@ class DocumentSection(StorageModel):
     embedding: list[float] | None = None
     summary: str | None = None
 
-    # Timestamps
-    created_at: datetime | None = Field(default_factory=datetime.utcnow)
-    updated_at: datetime | None = Field(default_factory=datetime.utcnow)
+    # Timestamps inherited from SecuredModelMixin
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
@@ -150,7 +140,7 @@ class DocumentSection(StorageModel):
 class DocumentTable(StorageModel):
     """Extracted table from document"""
 
-    id: str | None = Field(default=None)
+    # id inherited from StorageModel
     document_id: str
     section_id: str | None = None
 
@@ -161,7 +151,9 @@ class DocumentTable(StorageModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
 
     # Schema information
-    schema: dict[str, str] = Field(default_factory=dict)  # Column name -> data type
+    table_schema: dict[str, str] = Field(
+        default_factory=dict
+    )  # Column name -> data type
     primary_key: str | None = None
     foreign_keys: dict[str, str] = Field(
         default_factory=dict
@@ -171,9 +163,7 @@ class DocumentTable(StorageModel):
     relational_table: str | None = None  # PostgreSQL table name
     indexed_columns: list[str] = Field(default_factory=list)
 
-    # Timestamps
-    created_at: datetime | None = Field(default_factory=datetime.utcnow)
-    updated_at: datetime | None = Field(default_factory=datetime.utcnow)
+    # Timestamps inherited from SecuredModelMixin
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
@@ -196,27 +186,27 @@ class DocumentTable(StorageModel):
 
     def to_storage_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
-        data = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict()
 
         # Ensure proper serialization of complex fields
         if self.headers:
             data["headers"] = list(self.headers)
         if self.rows:
             data["rows"] = [dict(row) for row in self.rows]
-        if self.schema:
-            data["schema"] = dict(self.schema)
+        if self.table_schema:
+            data["table_schema"] = dict(self.table_schema)
         if self.foreign_keys:
             data["foreign_keys"] = dict(self.foreign_keys)
         if self.indexed_columns:
             data["indexed_columns"] = list(self.indexed_columns)
 
-        return data  # type: ignore[no-any-return]
+        return data
 
 
 class DocumentImage(StorageModel):
     """Image extracted from document"""
 
-    id: str | None = Field(default=None)
+    # id inherited from StorageModel
     document_id: str
     section_id: str | None = None
 
@@ -230,8 +220,8 @@ class DocumentImage(StorageModel):
     caption: str | None = None
     alt_text: str | None = None
     extracted_text: str | None = None
-    detected_objects: list[dict] = Field(default_factory=list)
-    chart_data: dict | None = None
+    detected_objects: list[dict[str, Any]] = Field(default_factory=list)
+    chart_data: dict[str, Any] | None = None
 
     # Embeddings (auto-generated)
     visual_embedding: list[float] | None = None
@@ -242,9 +232,7 @@ class DocumentImage(StorageModel):
     analysis_result: str | None = None
     analysis_timestamp: datetime | None = None
 
-    # Timestamps
-    created_at: datetime | None = Field(default_factory=datetime.utcnow)
-    updated_at: datetime | None = Field(default_factory=datetime.utcnow)
+    # Timestamps inherited from SecuredModelMixin
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
@@ -267,7 +255,7 @@ class DocumentImage(StorageModel):
 
     def to_storage_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
-        data = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict()
 
         # Ensure proper serialization
         if self.dimensions:
@@ -285,4 +273,4 @@ class DocumentImage(StorageModel):
         if self.text_embedding:
             data["text_embedding"] = list(self.text_embedding)
 
-        return data  # type: ignore[no-any-return]
+        return data
