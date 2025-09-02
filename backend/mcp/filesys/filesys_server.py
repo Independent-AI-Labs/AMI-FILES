@@ -8,15 +8,12 @@ from base.backend.utils.standard_imports import setup_imports
 
 ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
 
-from loguru import logger  # noqa: E402
-from mcp.server import FastMCP  # noqa: E402
-
-from .tools.document_tools import (  # noqa: E402
+from files.backend.mcp.filesys.tools.document_tools import (  # noqa: E402
     index_document_tool,
     read_document_tool,
     read_image_tool,
 )
-from .tools.filesystem_tools import (  # noqa: E402
+from files.backend.mcp.filesys.tools.filesystem_tools import (  # noqa: E402
     create_dirs_tool,
     delete_paths_tool,
     find_paths_tool,
@@ -26,7 +23,7 @@ from .tools.filesystem_tools import (  # noqa: E402
     replace_in_file_tool,
     write_to_file_tool,
 )
-from .tools.git_tools import (  # noqa: E402
+from files.backend.mcp.filesys.tools.git_tools import (  # noqa: E402
     git_commit_tool,
     git_diff_tool,
     git_fetch_tool,
@@ -39,13 +36,15 @@ from .tools.git_tools import (  # noqa: E402
     git_status_tool,
     git_unstage_tool,
 )
-from .tools.python_tools import (  # noqa: E402
+from files.backend.mcp.filesys.tools.python_tools import (  # noqa: E402
     python_list_tasks_tool,
     python_run_background_tool,
     python_run_tool,
     python_task_cancel_tool,
     python_task_status_tool,
 )
+from loguru import logger  # noqa: E402
+from mcp.server import FastMCP  # noqa: E402
 
 
 class FilesysFastMCPServer:

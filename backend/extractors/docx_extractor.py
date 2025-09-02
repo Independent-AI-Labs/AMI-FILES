@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar
 
-from .base import DocumentExtractor, ExtractionResult
+from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
 

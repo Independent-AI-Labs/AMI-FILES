@@ -7,6 +7,7 @@ from typing import Any
 
 # Import file-based subprocess from base
 from base.backend.workers.file_subprocess import FileSubprocess
+from files.backend.config import files_config
 from loguru import logger
 
 # Module-level pool management
@@ -146,18 +147,21 @@ async def python_run_background_tool(
         # Get or create pool manager and pool
         if _pool_manager is None:
             _pool_manager = WorkerPoolManager()
+            worker_config = files_config.get_worker_config()
             config = PoolConfig(
                 name="FilesysPythonBgPool",
                 pool_type=PoolType.PROCESS,
-                max_workers=5,
-                min_workers=1,
+                max_workers=worker_config["max_workers"],
+                min_workers=worker_config["min_workers"],
             )
             _worker_pool = await _pool_manager.create_pool(config)
 
         pool = _worker_pool
 
         # Submit task to pool
-        task_id = await pool.acquire_worker(timeout=30)
+        task_id = await pool.acquire_worker(
+            timeout=files_config.get_python_timeout("worker_acquire")
+        )
 
         # Execute in background
         async def execute() -> dict[str, Any]:

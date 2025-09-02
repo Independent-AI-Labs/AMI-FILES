@@ -1,0 +1,35 @@
+# Configuration for files backend module
+# Default values for timeouts, file sizes, and other configurable parameters
+
+# Pre-commit validation settings
+precommit:
+  timeouts:
+    version_check: 5  # seconds - timeout for checking pre-commit version
+    validation_run: 30  # seconds - timeout for pre-commit validation run
+    recheck_run: 30  # seconds - timeout for pre-commit recheck after fixes
+  
+  file_limits:
+    max_file_size_kb: 1024  # KB - maximum file size for pre-commit validation
+
+# File utilities settings
+file_utils:
+  limits:
+    max_file_size: 104857600  # bytes (100MB) - maximum file size for processing
+
+# Python execution tools settings
+python_tools:
+  timeouts:
+    worker_acquire: 30  # seconds - timeout for acquiring worker from pool
+    execution_default: 300  # seconds - default execution timeout (existing default)
+  
+  workers:
+    min_workers: 1  # minimum workers in background pool
+    max_workers: 5  # maximum workers in background pool
+
+# General filesystem settings
+filesystem:
+  encoding:
+    default: "utf-8"  # default file encoding
+  
+  chunk_sizes:
+    read_buffer: 8192  # bytes - buffer size for file reading operations
