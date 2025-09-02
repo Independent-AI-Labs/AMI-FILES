@@ -402,11 +402,11 @@ async def delete_paths_tool(root_dir: Path, paths: list[str]) -> dict[str, Any]:
             except Exception as e:
                 errors.append(f"{path_str}: {e!s}")
 
-        result = {"deleted": deleted}
+        result: dict[str, Any] = {"deleted": deleted}
         if errors:
             result["errors"] = errors
         else:
-            result["success"] = True  # type: ignore[assignment]
+            result["success"] = True
 
         return result
     except Exception as e:
@@ -446,11 +446,11 @@ async def modify_file_tool(
                 return {"error": "Line offsets out of range"}
 
             # Replace the lines
-            new_lines = (
-                lines[:start_idx]
-                + [new_content + ("\n" if not new_content.endswith("\n") else "")]
-                + lines[end_idx + 1 :]
-            )
+            new_lines = [
+                *lines[:start_idx],
+                new_content + ("\n" if not new_content.endswith("\n") else ""),
+                *lines[end_idx + 1 :],
+            ]
             new_full_content = "".join(new_lines)
         elif offset_type == "byte":
             if start_offset_inclusive < 0 or end_offset_inclusive >= len(content):
@@ -477,10 +477,16 @@ async def modify_file_tool(
 
 
 async def replace_in_file_tool(
-    root_dir: Path, path: str, pattern: str, replacement: str, regex: bool = False
+    root_dir: Path,
+    path: str,
+    old_content: str,
+    new_content: str,
+    is_regex: bool = False,
 ) -> dict[str, Any]:
     """Replace text in file."""
-    logger.debug(f"Replacing in file: path={path}, pattern={pattern}, regex={regex}")
+    logger.debug(
+        f"Replacing in file: path={path}, old_content={old_content}, is_regex={is_regex}"
+    )
 
     try:
         safe_path = validate_path(root_dir, path, allow_write=False)
@@ -490,14 +496,14 @@ async def replace_in_file_tool(
 
         content = safe_path.read_text(encoding="utf-8")
 
-        if regex:
-            new_content = re.sub(pattern, replacement, content)
-            count = len(re.findall(pattern, content))
+        if is_regex:
+            new_file_content = re.sub(old_content, new_content, content)
+            count = len(re.findall(old_content, content))
         else:
-            count = content.count(pattern)
-            new_content = content.replace(pattern, replacement)
+            count = content.count(old_content)
+            new_file_content = content.replace(old_content, new_content)
 
-        safe_path.write_text(new_content, encoding="utf-8")
+        safe_path.write_text(new_file_content, encoding="utf-8")
 
         return {
             "success": True,

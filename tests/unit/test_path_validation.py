@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Generator
 
 import pytest
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
@@ -11,12 +12,12 @@ class TestPathValidation:
     """Test path validation for both absolute and relative paths."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for testing."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
 
-    def test_relative_path_validation(self, temp_dir):
+    def test_relative_path_validation(self, temp_dir: Path) -> None:
         """Test validation of relative paths."""
         # Create a test file
         test_file = temp_dir / "test.txt"
@@ -28,7 +29,7 @@ class TestPathValidation:
         assert result.resolve() == test_file.resolve()
         assert result.exists()
 
-    def test_nested_relative_path_validation(self, temp_dir):
+    def test_nested_relative_path_validation(self, temp_dir: Path) -> None:
         """Test validation of nested relative paths."""
         # Create nested structure
         nested_dir = temp_dir / "subdir" / "nested"
@@ -42,7 +43,7 @@ class TestPathValidation:
         assert result.resolve() == test_file.resolve()
         assert result.exists()
 
-    def test_absolute_path_within_root(self, temp_dir):
+    def test_absolute_path_within_root(self, temp_dir: Path) -> None:
         """Test validation of absolute paths within root directory."""
         # Create a test file
         test_file = temp_dir / "test.txt"
@@ -55,7 +56,7 @@ class TestPathValidation:
         assert result.resolve() == test_file.resolve()
         assert result.exists()
 
-    def test_absolute_path_matching_structure(self, temp_dir):
+    def test_absolute_path_matching_structure(self, temp_dir: Path) -> None:
         """Test validation of absolute paths that match root structure."""
         # Create a test file
         subdir = temp_dir / "myproject" / "src"
@@ -73,7 +74,9 @@ class TestPathValidation:
         # Compare resolved paths to handle symlinks properly
         assert result.resolve() == test_file.resolve()
 
-    def test_absolute_path_outside_root_with_matching_name(self, temp_dir):
+    def test_absolute_path_outside_root_with_matching_name(
+        self, temp_dir: Path
+    ) -> None:
         """Test handling of absolute paths outside root with matching directory name."""
         # Create the root structure
         root_name = "testproject"
@@ -90,14 +93,14 @@ class TestPathValidation:
         expected = root_dir / "src" / "file.py"
         assert result == expected.resolve()
 
-    def test_path_traversal_prevention(self, temp_dir):
+    def test_path_traversal_prevention(self, temp_dir: Path) -> None:
         """Test that path traversal attempts are blocked."""
         # Try to escape root with ../
         with pytest.raises(ValueError) as exc_info:
             FileUtils.validate_file_path("../../../etc/passwd", temp_dir)
         assert "outside the allowed root directory" in str(exc_info.value)
 
-    def test_absolute_path_no_match(self, temp_dir):
+    def test_absolute_path_no_match(self, temp_dir: Path) -> None:
         """Test that absolute paths with no matching structure are rejected."""
         root_dir = temp_dir / "myproject"
         root_dir.mkdir()
@@ -109,7 +112,7 @@ class TestPathValidation:
             )
         assert "cannot be mapped to root directory" in str(exc_info.value)
 
-    def test_validate_path_with_must_exist(self, temp_dir):
+    def test_validate_path_with_must_exist(self, temp_dir: Path) -> None:
         """Test the validate_path method with must_exist flag."""
         # Create a test file
         test_file = temp_dir / "exists.txt"
@@ -125,7 +128,7 @@ class TestPathValidation:
             FileUtils.validate_path("not_exists.txt", temp_dir, must_exist=True)
         assert "Path does not exist" in str(exc_info.value)
 
-    def test_windows_style_paths(self, temp_dir):
+    def test_windows_style_paths(self, temp_dir: Path) -> None:
         """Test handling of Windows-style paths."""
         # Create test structure
         subdir = temp_dir / "folder"
@@ -138,7 +141,7 @@ class TestPathValidation:
         # Compare resolved paths to handle symlinks properly
         assert result.resolve() == test_file.resolve()
 
-    def test_mixed_separators(self, temp_dir):
+    def test_mixed_separators(self, temp_dir: Path) -> None:
         """Test handling of mixed path separators."""
         # Create test structure
         nested = temp_dir / "a" / "b" / "c"
@@ -151,7 +154,7 @@ class TestPathValidation:
         # Compare resolved paths to handle symlinks properly
         assert result.resolve() == test_file.resolve()
 
-    def test_dot_notation_paths(self, temp_dir):
+    def test_dot_notation_paths(self, temp_dir: Path) -> None:
         """Test handling of paths with . and .. notation."""
         # Create test structure
         (temp_dir / "dir1").mkdir()

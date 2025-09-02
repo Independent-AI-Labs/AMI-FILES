@@ -1,38 +1,50 @@
 #!/usr/bin/env python
-"""Run Filesys MCP server with stdio/websocket support."""
+"""Runner script for Filesys MCP server."""
 
-import asyncio
 import sys
 from pathlib import Path
 
-# Get module root
-MODULE_ROOT = Path(__file__).resolve().parent.parent
-
-# Add files and parent (for base imports) to path
+# Add files and base to path
+MODULE_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(MODULE_ROOT))
-sys.path.insert(0, str(MODULE_ROOT.parent))
+sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
 
-from base.backend.mcp.mcp_runner import MCPRunner  # noqa: E402
-
-from backend.mcp.filesys.server import FilesysMCPServer  # noqa: E402
+from backend.mcp.filesys.filesys_server import FilesysFastMCPServer  # noqa: E402
 
 
-async def main():
+def main() -> None:
     """Run the Filesys MCP server."""
-    runner = MCPRunner(
-        server_class=FilesysMCPServer,
-        server_name="Filesys",
-        config_files=["filesys_config.yaml", "config.yaml"],
-        extra_args={
-            "--root-dir": {
-                "type": str,
-                "help": "Root directory for file operations",
-                "default": None,
-            }
-        },
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Filesys MCP Server")
+    parser.add_argument(
+        "--root-dir",
+        type=str,
+        default=".",
+        help="Root directory for file operations",
     )
-    await runner.run()
+    parser.add_argument(
+        "--transport",
+        type=str,
+        default="stdio",
+        choices=["stdio", "sse", "streamable-http"],
+        help="Transport type",
+    )
+    parser.add_argument(
+        "--response-format",
+        type=str,
+        default="json",
+        choices=["json", "yaml"],
+        help="Response format",
+    )
+
+    args = parser.parse_args()
+
+    # Create and run server
+    config = {"response_format": args.response_format}
+    server = FilesysFastMCPServer(root_dir=args.root_dir, config=config)
+    server.run(transport=args.transport)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

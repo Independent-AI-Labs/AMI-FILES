@@ -9,6 +9,10 @@ from typing import Any
 from base.backend.workers.file_subprocess import FileSubprocess
 from loguru import logger
 
+# Module-level pool management
+_pool_manager = None
+_worker_pool = None
+
 
 async def python_run_tool(
     root_dir: Path,
@@ -98,7 +102,7 @@ async def python_run_tool(
 
         # Use file-based subprocess for reliable execution
         executor = FileSubprocess(work_dir=work_dir)
-        result = await executor.run(cmd_args, timeout=timeout)
+        result: dict[str, Any] = await executor.run(cmd_args, timeout=timeout)
 
         logger.debug(f"Subprocess completed with returncode={result.get('returncode')}")
 
@@ -106,7 +110,7 @@ async def python_run_tool(
         if result.get("timeout"):
             logger.warning(f"Python execution timed out after {timeout} seconds")
 
-        return result  # type: ignore[no-any-return]
+        return result
 
     except Exception as e:
         logger.error(f"Python execution failed: {e}")
@@ -137,26 +141,26 @@ async def python_run_background_tool(
         from base.backend.workers.base import WorkerPoolManager
         from base.backend.workers.types import PoolConfig, PoolType
 
+        global _pool_manager, _worker_pool
+
         # Get or create pool manager and pool
-        if not hasattr(python_run_background_tool, "_manager"):
-            python_run_background_tool._manager = WorkerPoolManager()  # type: ignore[attr-defined] # noqa: SLF001
+        if _pool_manager is None:
+            _pool_manager = WorkerPoolManager()
             config = PoolConfig(
                 name="FilesysPythonBgPool",
                 pool_type=PoolType.PROCESS,
                 max_workers=5,
                 min_workers=1,
             )
-            python_run_background_tool._pool = (  # type: ignore[attr-defined] # noqa: SLF001
-                await python_run_background_tool._manager.create_pool(config)  # type: ignore[attr-defined] # noqa: SLF001
-            )
+            _worker_pool = await _pool_manager.create_pool(config)
 
-        pool = python_run_background_tool._pool  # type: ignore[attr-defined] # noqa: SLF001
+        pool = _worker_pool
 
         # Submit task to pool
         task_id = await pool.acquire_worker(timeout=30)
 
         # Execute in background
-        async def execute():
+        async def execute() -> dict[str, Any]:
             try:
                 result = await python_run_tool(
                     root_dir, script, args, 0, cwd, python
@@ -190,13 +194,15 @@ async def python_task_status_tool(task_id: str) -> dict[str, Any]:
         Task status information
     """
     try:
-        if not hasattr(python_run_background_tool, "_pool"):
+        global _worker_pool
+
+        if _worker_pool is None:
             return {"error": "No background tasks running", "success": False}
 
-        pool = python_run_background_tool._pool  # noqa: SLF001
+        pool = _worker_pool
 
         # Check worker status
-        worker = pool._workers.get(task_id)  # noqa: SLF001
+        worker = pool.all_workers.get(task_id)
         if worker:
             return {
                 "success": True,
@@ -226,10 +232,12 @@ async def python_task_cancel_tool(task_id: str) -> dict[str, Any]:
         Cancellation result
     """
     try:
-        if not hasattr(python_run_background_tool, "_pool"):
+        global _worker_pool
+
+        if _worker_pool is None:
             return {"error": "No background tasks running", "success": False}
 
-        pool = python_run_background_tool._pool  # noqa: SLF001
+        pool = _worker_pool
 
         # Release the worker (this will cancel the task)
         await pool.release_worker(task_id)
@@ -252,17 +260,19 @@ async def python_list_tasks_tool() -> dict[str, Any]:
         List of active tasks
     """
     try:
-        if not hasattr(python_run_background_tool, "_pool"):
+        global _worker_pool
+
+        if _worker_pool is None:
             return {
                 "tasks": [],
                 "message": "No background tasks running",
                 "success": True,
             }
 
-        pool = python_run_background_tool._pool  # noqa: SLF001
+        pool = _worker_pool
 
         tasks = []
-        for worker_id, worker in pool._workers.items():  # noqa: SLF001
+        for worker_id, worker in pool.all_workers.items():
             tasks.append(
                 {
                     "task_id": worker_id,
@@ -278,9 +288,9 @@ async def python_list_tasks_tool() -> dict[str, Any]:
             "tasks": tasks,
             "total": len(tasks),
             "pool_info": {
-                "min_workers": pool.min_workers,
-                "max_workers": pool.max_workers,
-                "active_workers": len(pool._workers),  # noqa: SLF001
+                "min_workers": pool.config.min_workers,
+                "max_workers": pool.config.max_workers,
+                "active_workers": len(pool.all_workers),
             },
         }
 

@@ -8,50 +8,67 @@ import quopri
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, AsyncContextManager
 
 import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.types import TextContent
 
 # Add files to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
+def get_text_content(result: object) -> str:
+    """Extract text content from MCP result, handling union types properly."""
+    if hasattr(result, "content") and result.content and len(result.content) > 0:
+        content_item = result.content[0]
+        if isinstance(content_item, TextContent):
+            return content_item.text
+        raise TypeError(f"Expected TextContent, got {type(content_item)}")
+    raise ValueError("No content found in result")
 
 
 class TestFileTools:
     """Test file system tools through FastMCP server using MCP client."""
 
     @pytest.fixture
-    def server_script(self):
+    def server_script(self) -> Path:
         """Get the server script path."""
         return (
             Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
         )
 
     @pytest.fixture
-    def venv_python(self):
+    def venv_python(self) -> Path:
         """Get the venv Python executable."""
         from base.backend.utils.environment_setup import EnvironmentSetup
 
-        return EnvironmentSetup.get_module_venv_python(Path(__file__))
+        return Path(EnvironmentSetup.get_module_venv_python(Path(__file__)))
 
-    async def _get_client_session(self, venv_python, server_script, temp_dir):
+    async def _get_client_session(
+        self, venv_python: Path, server_script: Path, temp_dir: str
+    ) -> AsyncContextManager[tuple[Any, Any]]:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),
-            args=["-u", str(server_script), "--root-dir", str(temp_dir)],
+            args=["-u", str(server_script), "--root-dir", temp_dir],
             env=None,
         )
         return stdio_client(server_params)
 
     @pytest.mark.asyncio
-    async def test_complete_file_workflow(self, venv_python, server_script):
+    async def test_complete_file_workflow(
+        self, venv_python: Path, server_script: Path
+    ) -> None:
         """Test a complete file operation workflow."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 
@@ -97,7 +114,7 @@ class TestFileTools:
                     "list_dir", arguments={"path": "project", "recursive": True}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "items" in response
                 assert len(response["items"]) >= 8  # 3 dirs + 5 files
@@ -108,7 +125,7 @@ class TestFileTools:
                     arguments={"path": "project", "keywords_path_name": [".py"]},
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "paths" in response or "matches" in response
                 paths = response.get("paths", response.get("matches", []))
@@ -132,7 +149,7 @@ class TestFileTools:
                     "read_from_file", arguments={"path": "project/src/main.py"}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "content" in response
                 assert "Modified Hello!" in response["content"]
@@ -158,7 +175,7 @@ class TestFileTools:
                     "read_from_file", arguments={"path": "project/src/utils.py"}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "async def helper" in response["content"]
 
@@ -167,7 +184,7 @@ class TestFileTools:
                     "delete_paths", arguments={"paths": ["project/.gitignore"]}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "deleted" in response
                 assert len(response["deleted"]) == 1
@@ -177,7 +194,7 @@ class TestFileTools:
                     "list_dir", arguments={"path": "project"}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "items" in response
                 # .gitignore should be gone
@@ -185,14 +202,17 @@ class TestFileTools:
                 assert ".gitignore" not in names
 
     @pytest.mark.asyncio
-    async def test_large_file_handling(self, venv_python, server_script):
+    async def test_large_file_handling(
+        self, venv_python: Path, server_script: Path
+    ) -> None:
         """Test handling of large files."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 
@@ -216,7 +236,7 @@ class TestFileTools:
                     },
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "content" in response
                 assert len(response["content"]) == 1024
@@ -241,21 +261,24 @@ class TestFileTools:
                     arguments={"path": ".", "keywords_file_content": ["MARKER"]},
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "paths" in response or "matches" in response
                 paths = response.get("paths", response.get("matches", []))
                 assert any("large_marked.txt" in path for path in paths)
 
     @pytest.mark.asyncio
-    async def test_concurrent_operations(self, venv_python, server_script):
+    async def test_concurrent_operations(
+        self, venv_python: Path, server_script: Path
+    ) -> None:
         """Test concurrent file operations."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 
@@ -285,7 +308,7 @@ class TestFileTools:
                 results = await asyncio.gather(*tasks)
                 for i, result in enumerate(results):
                     assert result is not None
-                    response_text = result.content[0].text
+                    response_text = get_text_content(result)
                     response = json.loads(response_text)
                     assert "content" in response
                     assert f"Content {i}" in response["content"]
@@ -296,19 +319,22 @@ class TestFileTools:
                     "delete_paths", arguments={"paths": paths}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert len(response["deleted"]) == 10
 
     @pytest.mark.asyncio
-    async def test_encoding_formats(self, venv_python, server_script):
+    async def test_encoding_formats(
+        self, venv_python: Path, server_script: Path
+    ) -> None:
         """Test different encoding formats."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 
@@ -336,7 +362,7 @@ class TestFileTools:
                 assert result is not None
 
                 # Test base64
-                b64_content = "Binary\x00Data\xFF"
+                b64_content = "Binary\x00Data\xff"
                 b64_encoded = base64.b64encode(b64_content.encode()).decode()
 
                 result = await session.call_tool(
@@ -355,7 +381,7 @@ class TestFileTools:
                     arguments={"path": "base64.txt", "output_format": "base64"},
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "content" in response
                 decoded = base64.b64decode(response["content"]).decode(
@@ -365,14 +391,15 @@ class TestFileTools:
                 assert "Data" in decoded
 
     @pytest.mark.asyncio
-    async def test_error_handling(self, venv_python, server_script):
+    async def test_error_handling(self, venv_python: Path, server_script: Path) -> None:
         """Test error handling in various scenarios."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 
@@ -381,7 +408,7 @@ class TestFileTools:
                     "read_from_file", arguments={"path": "nonexistent.txt"}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "error" in response
                 assert "does not exist" in response["error"]
@@ -391,7 +418,7 @@ class TestFileTools:
                     "list_dir", arguments={"path": "nonexistent_dir"}
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "error" in response
 
@@ -401,7 +428,7 @@ class TestFileTools:
                     arguments={"path": "../../outside.txt", "content": "Should fail"},
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "error" in response
                 assert "outside" in response["error"].lower()
@@ -412,7 +439,7 @@ class TestFileTools:
                     arguments={"paths": ["nonexistent1.txt", "nonexistent2.txt"]},
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "errors" in response
                 assert len(response["errors"]) == 2
@@ -428,7 +455,7 @@ class TestFileTools:
                     },
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "error" in response
 
@@ -442,19 +469,22 @@ class TestFileTools:
                     },
                 )
                 assert result is not None
-                response_text = result.content[0].text
+                response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "error" in response
 
     @pytest.mark.asyncio
-    async def test_protocol_compliance(self, venv_python, server_script):
+    async def test_protocol_compliance(
+        self, venv_python: Path, server_script: Path
+    ) -> None:
         """Test MCP protocol compliance."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream), ClientSession(
-                read_stream, write_stream
-            ) as session:
+            async with (
+                await self._get_client_session(
+                    venv_python, server_script, temp_dir
+                ) as (read_stream, write_stream),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 result = await session.initialize()
                 assert result.serverInfo.name == "FilesysMCPServer"
@@ -477,16 +507,18 @@ class TestFileTools:
                         assert isinstance(tool.inputSchema["required"], list)
 
                 # Test tool execution returns proper format
-                result = await session.call_tool("list_dir", arguments={"path": "."})
-                assert result is not None
-                assert isinstance(result.content, list)
-                assert len(result.content) > 0
+                call_result = await session.call_tool(
+                    "list_dir", arguments={"path": "."}
+                )
+                assert call_result is not None
+                assert isinstance(call_result.content, list)
+                assert len(call_result.content) > 0
 
                 # Error responses should have error key in the response
-                result = await session.call_tool(
+                call_result = await session.call_tool(
                     "read_from_file", arguments={"path": "nonexistent.txt"}
                 )
-                assert result is not None
-                response_text = result.content[0].text
+                assert call_result is not None
+                response_text = get_text_content(call_result)
                 response = json.loads(response_text)
                 assert "error" in response

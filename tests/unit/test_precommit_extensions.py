@@ -10,7 +10,7 @@ from files.backend.mcp.filesys.utils.precommit_validator import PreCommitValidat
 class TestPreCommitExtensions:
     """Test pre-commit validator with file extension checking."""
 
-    def test_is_source_code_file(self):
+    def test_is_source_code_file(self) -> None:
         """Test source code file detection."""
         # Test programming files
         assert FileUtils.is_source_code_file(Path("test.py"))
@@ -34,7 +34,7 @@ class TestPreCommitExtensions:
         assert not FileUtils.is_source_code_file(Path("test.jpg"))
         assert not FileUtils.is_source_code_file(Path("test.zip"))
 
-    def test_should_validate_file(self):
+    def test_should_validate_file(self) -> None:
         """Test pre-commit validation file filtering."""
         validator = PreCommitValidator()
 
@@ -50,7 +50,7 @@ class TestPreCommitExtensions:
         assert not validator.should_validate_file(Path("image.png"))
 
     @pytest.mark.asyncio
-    async def test_validate_content_skips_non_source_files(self):
+    async def test_validate_content_skips_non_source_files(self) -> None:
         """Test that validation is skipped for non-source files."""
         validator = PreCommitValidator()
 
@@ -65,7 +65,7 @@ class TestPreCommitExtensions:
         assert result["modified_content"] == "Some text content"
 
     @pytest.mark.asyncio
-    async def test_validate_content_checks_source_files(self):
+    async def test_validate_content_checks_source_files(self) -> None:
         """Test that validation runs for source files."""
         validator = PreCommitValidator()
 
@@ -79,13 +79,13 @@ class TestPreCommitExtensions:
         assert "errors" in result
         assert "modified_content" in result
 
-    def test_load_source_extensions_from_config(self):
+    def test_load_source_extensions_from_config(self) -> None:
         """Test loading source extensions from config file."""
         # Clear cache to force reload
-        FileUtils._source_extensions = None  # noqa: SLF001
+        FileUtils.clear_extensions_cache()
 
         # Load extensions
-        extensions = FileUtils._load_source_extensions()  # noqa: SLF001
+        extensions = FileUtils.get_source_extensions()
 
         # Should have loaded many extensions
         assert len(extensions) > 50  # We have many programming and web extensions
@@ -99,5 +99,5 @@ class TestPreCommitExtensions:
         assert ".cpp" in extensions
 
         # Check caching works
-        extensions2 = FileUtils._load_source_extensions()  # noqa: SLF001
+        extensions2 = FileUtils.get_source_extensions()
         assert extensions is extensions2  # Should be same object (cached)

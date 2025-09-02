@@ -146,7 +146,7 @@ class DOCXExtractor(DocumentExtractor):
 
         return 1
 
-    async def _extract_tables(self, doc) -> list[dict[str, Any]]:
+    async def _extract_tables(self, doc: Any) -> list[dict[str, Any]]:
         """Extract tables from document"""
         tables = []
 
@@ -187,7 +187,7 @@ class DOCXExtractor(DocumentExtractor):
 
         return tables
 
-    async def _extract_images(self, doc, file_path: Path) -> list[dict[str, Any]]:
+    async def _extract_images(self, doc: Any, file_path: Path) -> list[dict[str, Any]]:
         """Extract images from document"""
         images = []
 

@@ -11,7 +11,7 @@ from files.backend.mcp.filesys.utils.precommit_validator import PreCommitValidat
 class TestPreCommitValidator:
     """Test PreCommitValidator functionality."""
 
-    def test_validator_initialization(self):
+    def test_validator_initialization(self) -> None:
         """Test validator initialization with defaults."""
         validator = PreCommitValidator()
 
@@ -19,7 +19,7 @@ class TestPreCommitValidator:
         assert validator.max_file_size_kb == 1024
         assert validator.skip_on_missing is True
 
-    def test_validator_configuration(self):
+    def test_validator_configuration(self) -> None:
         """Test configuring validator after initialization."""
         validator = PreCommitValidator()
 
@@ -33,7 +33,7 @@ class TestPreCommitValidator:
         assert validator.skip_on_missing is False
 
     @pytest.mark.asyncio
-    async def test_validate_disabled(self):
+    async def test_validate_disabled(self) -> None:
         """Test validation when disabled."""
         validator = PreCommitValidator()
         validator.enabled = False
@@ -48,7 +48,7 @@ class TestPreCommitValidator:
         assert result["modified_content"] == "print('hello')"
 
     @pytest.mark.asyncio
-    async def test_validate_file_too_large(self):
+    async def test_validate_file_too_large(self) -> None:
         """Test validation of files exceeding size limit."""
         validator = PreCommitValidator()
         validator.max_file_size_kb = 0.001  # 1 byte
@@ -63,7 +63,7 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_precommit_success(self, mock_run):
+    async def test_validate_with_precommit_success(self, mock_run: MagicMock) -> None:
         """Test successful validation with pre-commit."""
         validator = PreCommitValidator()
 
@@ -88,7 +88,7 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_precommit_failure(self, mock_run):
+    async def test_validate_with_precommit_failure(self, mock_run: MagicMock) -> None:
         """Test validation failure with pre-commit."""
         validator = PreCommitValidator()
 
@@ -115,7 +115,7 @@ class TestPreCommitValidator:
             assert "Line too long" in result["errors"][0]
 
     @pytest.mark.asyncio
-    async def test_validate_no_precommit_skip(self):
+    async def test_validate_no_precommit_skip(self) -> None:
         """Test skipping validation when pre-commit is not available."""
         validator = PreCommitValidator()
         validator.skip_on_missing = True
@@ -130,7 +130,7 @@ class TestPreCommitValidator:
             assert result["errors"] == []
 
     @pytest.mark.asyncio
-    async def test_validate_no_precommit_fail(self):
+    async def test_validate_no_precommit_fail(self) -> None:
         """Test failing validation when pre-commit is not available and not skipping."""
         validator = PreCommitValidator()
         validator.skip_on_missing = False
@@ -145,7 +145,7 @@ class TestPreCommitValidator:
             assert "Pre-commit is not installed" in result["errors"][0]
 
     @pytest.mark.asyncio
-    async def test_validate_not_in_git_repo(self):
+    async def test_validate_not_in_git_repo(self) -> None:
         """Test validation when not in a git repository."""
         validator = PreCommitValidator()
 
@@ -163,7 +163,7 @@ class TestPreCommitValidator:
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_validate_with_auto_fix(self, mock_run):
+    async def test_validate_with_auto_fix(self, mock_run: MagicMock) -> None:
         """Test validation with automatic fixes applied by pre-commit."""
         validator = PreCommitValidator()
 
@@ -202,7 +202,7 @@ class TestPreCommitValidator:
                 with contextlib.suppress(PermissionError, FileNotFoundError):
                     tmp_path.unlink()
 
-    def test_check_precommit_available(self):
+    def test_check_precommit_available(self) -> None:
         """Test checking if pre-commit is available."""
         validator = PreCommitValidator()
 
@@ -216,10 +216,10 @@ class TestPreCommitValidator:
                 patch.object(Path, "cwd", return_value=Path("/project")),
             ):
                 mock_exists.return_value = True
-                result = validator._check_precommit_available()  # noqa: SLF001
+                result = validator.is_precommit_available()
                 assert result is True
 
-    def test_find_git_root(self):
+    def test_find_git_root(self) -> None:
         """Test finding git repository root."""
         validator = PreCommitValidator()
 
@@ -235,5 +235,5 @@ class TestPreCommitValidator:
 
                 # This test is tricky due to Path behavior
                 # In practice, the function works correctly
-                _ = validator._find_git_root()  # noqa: SLF001
+                _ = validator.find_git_root()
                 # Result depends on the actual file system

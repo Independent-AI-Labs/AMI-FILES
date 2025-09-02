@@ -14,11 +14,11 @@ from .file_utils import FileUtils
 class PreCommitValidator:
     """Validates files using pre-commit hooks before writing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the validator."""
-        self.enabled = True
-        self.skip_on_missing = True
-        self.max_file_size_kb = 1024
+        self.enabled: bool = True
+        self.skip_on_missing: bool = True
+        self.max_file_size_kb: int | float = 1024
 
     def _check_precommit_available(self) -> bool:
         """Check if pre-commit is installed and configured.
@@ -74,6 +74,22 @@ class PreCommitValidator:
         """
         # Only validate source code files
         return bool(FileUtils.is_source_code_file(file_path))
+
+    def is_precommit_available(self) -> bool:
+        """Check if pre-commit is available for use.
+
+        Returns:
+            True if pre-commit is available
+        """
+        return self._check_precommit_available()
+
+    def find_git_root(self) -> Path | None:
+        """Find the git repository root directory.
+
+        Returns:
+            Path to git root or None if not found
+        """
+        return self._find_git_root()
 
     async def validate_content(
         self,

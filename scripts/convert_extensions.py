@@ -3,8 +3,10 @@
 import json
 from pathlib import Path
 
+from loguru import logger
 
-def main():
+
+def main() -> None:
     """Convert BigCode JSON to simple text extensions format."""
     # Read the BigCode JSON
     bigcode_path = Path(__file__).parent.parent / "res" / "bigcode_extensions.json"
@@ -105,7 +107,7 @@ def main():
     with output_path.open("w") as f:
         json.dump(output, f, indent=2, sort_keys=False)
 
-    print(f"Generated {output_path} with {len(all_extensions)} text extensions")
+    logger.info(f"Generated {output_path} with {len(all_extensions)} text extensions")
 
     # Also generate a minimal version with just the extensions list
     minimal = {
@@ -117,7 +119,7 @@ def main():
     with minimal_path.open("w") as f:
         json.dump(minimal, f, indent=2)
 
-    print(f"Generated {minimal_path} with minimal extension list")
+    logger.info(f"Generated {minimal_path} with minimal extension list")
 
 
 if __name__ == "__main__":

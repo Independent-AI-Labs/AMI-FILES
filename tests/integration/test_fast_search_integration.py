@@ -6,18 +6,19 @@ from pathlib import Path
 import pytest
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
+from loguru import logger
 
 
 class TestFastSearchIntegration:
     """Test FastFileSearcher with real repository files."""
 
     @pytest.fixture
-    def repo_root(self):
+    def repo_root(self) -> Path:
         """Get the FILES module root directory."""
         return Path(__file__).parent.parent.parent
 
     @pytest.mark.asyncio
-    async def test_search_python_files(self, repo_root):
+    async def test_search_python_files(self, repo_root: Path) -> None:
         """Test searching for Python files in the repository."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -41,7 +42,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_by_import_statements(self, repo_root):
+    async def test_search_by_import_statements(self, repo_root: Path) -> None:
         """Test searching for files containing specific imports."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -61,7 +62,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_with_regex_class_definitions(self, repo_root):
+    async def test_search_with_regex_class_definitions(self, repo_root: Path) -> None:
         """Test searching for class definitions using regex."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -84,7 +85,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_test_files(self, repo_root):
+    async def test_search_test_files(self, repo_root: Path) -> None:
         """Test searching for test files."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -103,7 +104,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_performance_comparison(self, repo_root):
+    async def test_performance_comparison(self, repo_root: Path) -> None:
         """Compare performance of fast search vs original implementation."""
         search_dir = repo_root / "backend"
 
@@ -136,19 +137,21 @@ class TestFastSearchIntegration:
         )
         original_time = time.time() - start
 
-        print("\nPerformance comparison:")
-        print(f"Fast search: {fast_time:.3f}s ({len(fast_results)} files)")
-        print(f"Original search: {original_time:.3f}s ({len(original_results)} files)")
+        logger.info("\nPerformance comparison:")
+        logger.info(f"Fast search: {fast_time:.3f}s ({len(fast_results)} files)")
+        logger.info(
+            f"Original search: {original_time:.3f}s ({len(original_results)} files)"
+        )
 
         # Results should be the same
         assert len(fast_results) == len(original_results)
 
         # Fast search should be at least as fast (often faster with more files)
         # For small repos the difference might be minimal
-        print(f"Speed ratio: {original_time / fast_time:.2f}x")
+        logger.info(f"Speed ratio: {original_time / fast_time:.2f}x")
 
     @pytest.mark.asyncio
-    async def test_search_with_pyahocorasick(self, repo_root):
+    async def test_search_with_pyahocorasick(self, repo_root: Path) -> None:
         """Test that pyahocorasick is used for exact string matching."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -174,7 +177,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_search_excludes_binary_files(self, repo_root):
+    async def test_search_excludes_binary_files(self, repo_root: Path) -> None:
         """Test that binary files are excluded from content search."""
         searcher = FastFileSearcher(max_workers=4)
         try:
@@ -193,7 +196,7 @@ class TestFastSearchIntegration:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_multithreaded_processing(self, repo_root):
+    async def test_multithreaded_processing(self, repo_root: Path) -> None:
         """Test that multithreading actually works."""
         # Test with different worker counts
         for workers in [1, 2, 4, 8]:
@@ -211,5 +214,7 @@ class TestFastSearchIntegration:
                 searcher.close()
             elapsed = time.time() - start
 
-            print(f"Workers: {workers}, Time: {elapsed:.3f}s, Results: {len(results)}")
+            logger.info(
+                f"Workers: {workers}, Time: {elapsed:.3f}s, Results: {len(results)}"
+            )
             assert len(results) > 0

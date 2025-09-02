@@ -18,7 +18,7 @@ class TestFilesysFastMCPServer:
     """Test Filesys FastMCP server using official MCP client."""
 
     @pytest.mark.asyncio
-    async def test_filesys_server_with_client(self):
+    async def test_filesys_server_with_client(self) -> None:
         """Test Filesys FastMCP server using official MCP client."""
         # Get the server script path
         server_script = (
@@ -40,10 +40,13 @@ class TestFilesysFastMCPServer:
             )
 
             # Use the stdio client to connect
-            async with stdio_client(server_params) as (
-                read_stream,
-                write_stream,
-            ), ClientSession(read_stream, write_stream) as session:
+            async with (
+                stdio_client(server_params) as (
+                    read_stream,
+                    write_stream,
+                ),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize the connection
                 result = await session.initialize()
 
@@ -63,7 +66,7 @@ class TestFilesysFastMCPServer:
                 assert "create_dirs" in tool_names
 
     @pytest.mark.asyncio
-    async def test_file_operations(self):
+    async def test_file_operations(self) -> None:
         """Test file read and write operations."""
         server_script = (
             Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
@@ -80,10 +83,13 @@ class TestFilesysFastMCPServer:
                 env=None,
             )
 
-            async with stdio_client(server_params) as (
-                read_stream,
-                write_stream,
-            ), ClientSession(read_stream, write_stream) as session:
+            async with (
+                stdio_client(server_params) as (
+                    read_stream,
+                    write_stream,
+                ),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 # Initialize
                 await session.initialize()
 

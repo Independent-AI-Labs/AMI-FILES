@@ -79,11 +79,12 @@ class ImageExtractor(DocumentExtractor):
 
                 # Extract EXIF data if available
                 exif_data = {}
-                if hasattr(img, "_getexif") and img._getexif():  # noqa: SLF001
-                    exif = img._getexif()  # noqa: SLF001
-                    for tag_id, value in exif.items():
-                        tag = TAGS.get(tag_id, tag_id)
-                        exif_data[tag] = self._clean_exif_value(value)
+                if hasattr(img, "getexif"):
+                    exif = img.getexif()
+                    if exif:
+                        for tag_id, value in exif.items():
+                            tag = TAGS.get(tag_id, tag_id)
+                            exif_data[tag] = self._clean_exif_value(value)
 
                     image_info["exif"] = exif_data
 
@@ -159,7 +160,7 @@ class ImageExtractor(DocumentExtractor):
         result.processing_time_ms = int((time.time() - start_time) * 1000)
         return result
 
-    def _clean_exif_value(self, value):
+    def _clean_exif_value(self, value: Any) -> Any:
         """Clean EXIF value for JSON serialization"""
         if isinstance(value, bytes):
             try:

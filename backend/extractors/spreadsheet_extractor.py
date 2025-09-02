@@ -214,7 +214,7 @@ class SpreadsheetExtractor(DocumentExtractor):
 
         return tables
 
-    def _dataframe_to_table(self, df, name: str) -> dict[str, Any] | None:
+    def _dataframe_to_table(self, df: Any, name: str) -> dict[str, Any] | None:
         """Convert pandas DataFrame to table dict"""
         try:
             import pandas as pd
