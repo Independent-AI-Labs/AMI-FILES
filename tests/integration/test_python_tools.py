@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from base.backend.utils.environment_setup import EnvironmentSetup
 from loguru import logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -40,7 +41,6 @@ class TestPythonExecution:
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-        from base.backend.utils.environment_setup import EnvironmentSetup
 
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
@@ -148,7 +148,6 @@ class TestPythonExecution:
             # Create a script file
             script_file = temp_path / "test_script.py"
             script_content = """
-import sys
 print("Python version:", sys.version.split()[0])
 print("Script executed successfully")
 sys.exit(0)
@@ -187,7 +186,6 @@ sys.exit(0)
                     await client.initialize()
 
                     script = """
-import sys
 print("Arguments:", sys.argv[1:])
 """
                     result = await client.call_tool(
@@ -229,7 +227,6 @@ print("Arguments:", sys.argv[1:])
 
                 # Run script that checks current directory
                 script = """
-import os
 print("CWD:", os.getcwd())
 print("Files:", os.listdir('.'))
 """
@@ -328,9 +325,6 @@ print("Done")
                     await client.initialize()
 
                     script = """
-import json
-import datetime
-import os
 
 data = {'timestamp': datetime.datetime.now().isoformat(), 'pid': os.getpid()}
 print(json.dumps(data))
@@ -358,7 +352,6 @@ class TestPythonErrorHandling:
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-        from base.backend.utils.environment_setup import EnvironmentSetup
 
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
@@ -505,7 +498,6 @@ class TestPythonComplexScenarios:
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-        from base.backend.utils.environment_setup import EnvironmentSetup
 
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
@@ -621,7 +613,6 @@ for i in range(1000):
                     await client.initialize()
 
                     script = """
-import sys
 print("Normal output 1")
 sys.stderr.write("Error output 1\\n")
 print("Normal output 2")

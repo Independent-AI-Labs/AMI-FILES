@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import io
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, ClassVar
 
+from docx import Document
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +42,6 @@ class DOCXExtractor(DocumentExtractor):
             extraction_method="python-docx",
             processing_time_ms=0,
         )
-
-        try:
-            from docx import Document
-        except ImportError:
-            result.error_messages.append("python-docx not installed")
-            result.processing_time_ms = int((time.time() - start_time) * 1000)
-            return result
 
         try:
             doc = Document(str(file_path))
@@ -137,7 +134,6 @@ class DOCXExtractor(DocumentExtractor):
             return 1
 
         # Try to extract number from style name
-        import re
 
         match = re.search(r"\d+", style_name)
         if match:
@@ -214,10 +210,6 @@ class DOCXExtractor(DocumentExtractor):
 
                     # Try to get dimensions if PIL is available
                     try:
-                        import io
-
-                        from PIL import Image
-
                         img = Image.open(io.BytesIO(image_data))
                         image_info["dimensions"] = {
                             "width": img.width,

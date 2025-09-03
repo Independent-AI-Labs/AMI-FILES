@@ -5,10 +5,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Import file-based subprocess from base
+from base.backend.workers.base import WorkerPoolManager
 from base.backend.workers.file_subprocess import FileSubprocess
+from base.backend.workers.types import PoolConfig, PoolType
 from files.backend.config import files_config
 from loguru import logger
+
+# Import file-based subprocess from base
 
 # Module-level pool management
 _pool_manager = None
@@ -139,8 +142,6 @@ async def python_run_background_tool(
     """
     try:
         # Import here to avoid circular dependency
-        from base.backend.workers.base import WorkerPoolManager
-        from base.backend.workers.types import PoolConfig, PoolType
 
         global _pool_manager, _worker_pool
 

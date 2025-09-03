@@ -3,6 +3,7 @@
 import base64
 import difflib
 import json
+import platform
 import re
 from enum import Enum
 from pathlib import Path
@@ -202,7 +203,6 @@ class FileUtils:
             root_path = root_dir.resolve()
 
             # Normalize Windows-style separators to forward slashes on Unix systems
-            import platform
 
             if platform.system() != "Windows":
                 # On Unix systems, replace backslashes with forward slashes

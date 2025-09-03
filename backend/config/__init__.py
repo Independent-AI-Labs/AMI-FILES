@@ -1,5 +1,5 @@
 """Configuration module for files backend."""
 
-from .loader import FilesConfigLoader, files_config
+from files.backend.config.loader import FilesConfigLoader, files_config
 
 __all__ = ["FilesConfigLoader", "files_config"]
