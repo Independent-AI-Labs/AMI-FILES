@@ -91,4 +91,6 @@ tmp/
 temp/
 *.tmp
 *.bak
-.backup
+.backup# Reference code directories - not tracked
+_reference_code/
+*/_reference_code/
