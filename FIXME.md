@@ -1,100 +1,78 @@
-# CRITICAL MODULE FIX INSTRUCTIONS
+# FILES MODULE REMAINING ISSUES
 
-## YOUR MISSION:
-Fix ALL issues in FILES module and push with ALL checks passing. NO CHEATING.
+## CURRENT STATUS:
+**PROGRESS**: Import system deployment completed, ruff violations fixed.
+**REMAINING**: Critical configuration and testing issues prevent full module stability.
 
 ---
 
-### STEP 1: GO TO MODULE
+## OUTSTANDING CRITICAL ISSUES:
+
+### 1. MYPY CONFIGURATION (CRITICAL)
+**Issue**: mypy.ini still contains `files = backend/` on line 5, limiting scope to backend folder only.
+**Impact**: MyPy only scans backend/ directory, missing type issues in other parts of module.
+**Fix Required**: Remove the `files = backend/` line completely to scan entire module.
+
+### 2. MYPY MODULE NAME CONFLICTS
+**Issue**: Source file found twice under different module names.
+```
+backend\config\loader.py: error: Source file found twice under different module names: "backend.config.loader" and "files.backend.config.loader"
+```
+**Impact**: Prevents MyPy from completing type checking.
+**Fix Required**: Resolve module path conflicts in configuration.
+
+### 3. TEST IMPORT FAILURES
+**Issue**: Test modules failing to import properly.
+```
+ImportError while importing test module 'tests/integration/test_fast_search_integration.py'
+```
+**Impact**: Cannot run test suite to verify functionality.
+**Fix Required**: Fix test import paths and module resolution.
+
+### 4. PRE-COMMIT YAML CONFIGURATION ERROR
+**Issue**: Invalid YAML syntax in .pre-commit-config.yaml.
+```
+InvalidConfigError: while parsing a block mapping in line 17, column 9
+did not find expected key in line 19, column 25
+```
+**Impact**: Pre-commit hooks cannot run, preventing quality gate enforcement.
+**Fix Required**: Fix YAML syntax errors in pre-commit configuration.
+
+---
+
+## VERIFICATION STEPS:
+
+### Check Issues Fixed:
 ```bash
 cd files
-pwd
-```
 
-### STEP 2: FIX MYPY.INI 
-**THE MOST CRITICAL ISSUE: mypy.ini has `files = backend/` which ONLY checks backend folder**
-```bash
-# Read current mypy.ini
-cat mypy.ini
+# Verify mypy.ini fix
+grep "files = backend/" mypy.ini
+# Should return NO results
 
-# Edit mypy.ini and REMOVE the line "files = backend/" completely
-# This makes mypy scan EVERYTHING
-```
-
-### STEP 3: RUN RUFF AND FIX ALL
-```bash
-# Auto-fix what's possible
-../.venv/Scripts/ruff check . --fix
-
-# Check what remains
-../.venv/Scripts/ruff check .
-
-# Fix remaining issues manually - NO SUPPRESSION
-```
-
-### STEP 4: RUN MYPY AND FIX ALL
-```bash
-# Run mypy on ENTIRE module
+# Verify mypy runs clean
 ../.venv/Scripts/python -m mypy . --show-error-codes
+# Should show NO errors
 
-# Fix EVERY type error - NO "type: ignore"
-```
-
-### STEP 5: RUN TESTS AND FIX ALL
-```bash
-# Run all tests
+# Verify tests pass
 ../.venv/Scripts/python -m pytest tests/ -v --tb=short
+# Should show ALL PASSED
 
-# Fix EVERY failing test - NO "pytest.skip"
-```
-
-### STEP 6: RUN PRE-COMMIT
-```bash
-# Run all pre-commit hooks
+# Verify pre-commit works
 ../.venv/Scripts/pre-commit run --all-files
-
-# If anything fails, fix and re-run
-```
-
-### STEP 7: FINAL VERIFICATION
-```bash
-# ALL must pass:
-../.venv/Scripts/ruff check .
-../.venv/Scripts/python -m mypy . --show-error-codes  
-../.venv/Scripts/python -m pytest tests/ -v
-../.venv/Scripts/pre-commit run --all-files
-```
-
-### STEP 8: COMMIT AND PUSH
-```bash
-git add -A
-git commit -m "fix: Complete FILES module code quality overhaul"
-# NO --no-verify EVER
-
-git push origin HEAD
-# Use 600000ms (10 minute) timeout for push
+# Should show ALL PASSED
 ```
 
 ---
 
-## ABSOLUTE RULES:
-1. **REMOVE `files = backend/` from mypy.ini** - MUST scan entire module
-2. **ZERO ruff violations**
-3. **ZERO mypy errors**  
-4. **ALL tests pass**
-5. **ALL pre-commit hooks pass**
-6. **NO --no-verify**
-7. **NO type: ignore**
-8. **NO # noqa**
-9. **NO pytest.skip**
-10. **FIX ACTUAL PROBLEMS, not symptoms**
+## ABSOLUTE REQUIREMENTS:
+- Fix mypy.ini scope limitation
+- Resolve module name conflicts
+- Fix test import issues
+- Repair pre-commit YAML configuration
+- ALL quality checks must pass before module is considered stable
 
----
-
-## IF YOU FAIL ANY CHECK:
-**STOP. FIX IT. DON'T PROCEED.**
-
-## SPECIFIC FILES MODULE ISSUES:
-- Remove "files = backend/" from mypy.ini
-- Check file operation permissions
-- Verify path handling works correctly
+## COMPLETED ITEMS:
+- Import system deployment (ami_path.py deployed)
+- Ruff code style violations (all fixed)
+- Basic module structure and import paths
