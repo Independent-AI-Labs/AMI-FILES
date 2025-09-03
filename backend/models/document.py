@@ -5,15 +5,15 @@ Document models for intelligent document processing
 from datetime import datetime
 from typing import Any, ClassVar
 
-# Use standard import setup
+from base.backend.config.loader import storage_config
+from base.backend.dataops.models.base_model import StorageModel
+from base.backend.dataops.models.storage_config import StorageConfig
 from base.backend.utils.standard_imports import setup_imports
+from pydantic import Field
+
+# Use standard import setup
 
 ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
-
-from base.backend.config.loader import storage_config  # noqa: E402
-from base.backend.dataops.models.base_model import StorageModel  # noqa: E402
-from base.backend.dataops.models.storage_config import StorageConfig  # noqa: E402
-from pydantic import Field  # noqa: E402
 
 
 class Document(StorageModel):

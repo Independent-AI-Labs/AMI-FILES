@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -144,7 +146,6 @@ class DocumentExtractor(ABC):
             return True
 
         # Numbered headings (1., 1.1, etc.)
-        import re
 
         if re.match(r"^\d+(\.\d+)*\.?\s+\w", line):
             return True
@@ -162,7 +163,6 @@ class DocumentExtractor(ABC):
             return min(level, 6)
 
         # Numbered headings
-        import re
 
         match = re.match(r"^(\d+(?:\.\d+)*)", line)
         if match:
@@ -180,7 +180,6 @@ class DocumentExtractor(ABC):
         line = line.lstrip("#").strip()
 
         # Remove numbering
-        import re
 
         line = re.sub(r"^\d+(\.\d+)*\.?\s+", "", line)
 
@@ -220,8 +219,6 @@ class DocumentExtractor(ABC):
 
             # Check for dates
             if data_type == "text":
-                from datetime import datetime, timezone
-
                 date_patterns = [
                     "%Y-%m-%d",
                     "%m/%d/%Y",

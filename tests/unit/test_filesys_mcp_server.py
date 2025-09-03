@@ -1,5 +1,6 @@
 """Unit tests for Filesystem FastMCP Server."""
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -90,7 +91,6 @@ class TestFilesysMCPServer:
             sub_dir.mkdir()
 
             # Initialize server with relative path
-            import os
 
             original_cwd = os.getcwd()
             try:

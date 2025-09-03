@@ -7,7 +7,10 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar
 
+import pytesseract
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 logger = logging.getLogger(__name__)
 
@@ -51,14 +54,6 @@ class ImageExtractor(DocumentExtractor):
             extraction_method="Pillow",
             processing_time_ms=0,
         )
-
-        try:
-            from PIL import Image
-            from PIL.ExifTags import TAGS
-        except ImportError:
-            result.error_messages.append("Pillow not installed")
-            result.processing_time_ms = int((time.time() - start_time) * 1000)
-            return result
 
         try:
             with Image.open(file_path) as img:
@@ -177,9 +172,6 @@ class ImageExtractor(DocumentExtractor):
     async def _perform_ocr(self, file_path: Path) -> str | None:
         """Perform OCR on image to extract text"""
         try:
-            import pytesseract
-            from PIL import Image
-
             img = Image.open(file_path)
             text = pytesseract.image_to_string(img)
 
