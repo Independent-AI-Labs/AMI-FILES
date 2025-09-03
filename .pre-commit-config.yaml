@@ -16,7 +16,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: cmd /c "cd .. && files\\.venv\\Scripts\\python.exe -m mypy files\\backend --config-file=files\\mypy.ini"
+        entry: "cmd /c \"cd .. && .venv\\Scripts\\python.exe -m mypy files\\backend --config-file=files\\mypy.ini\""
         language: system
         types: [ python ]
         require_serial: true

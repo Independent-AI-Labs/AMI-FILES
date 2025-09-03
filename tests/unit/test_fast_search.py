@@ -1,11 +1,13 @@
 """Tests for fast multithreaded file search."""
 
 import tempfile
+import time
 from pathlib import Path
 from typing import Iterator
 
 import pytest
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
+from files.backend.mcp.filesys.utils.file_utils import FileUtils
 from loguru import logger
 
 
@@ -192,9 +194,6 @@ class TestFastFileSearcher:
     @pytest.mark.asyncio
     async def test_performance_vs_original(self, temp_dir: Path) -> None:
         """Test that fast search is actually faster for large directories."""
-        import time
-
-        from files.backend.mcp.filesys.utils.file_utils import FileUtils
 
         # Create more files for performance test
         for i in range(50):

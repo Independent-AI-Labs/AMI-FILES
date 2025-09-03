@@ -1,5 +1,6 @@
 """Tests for pre-commit validation."""
 
+import contextlib
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -197,8 +198,6 @@ class TestPreCommitValidator:
                 assert isinstance(result["errors"], list)
                 assert "modified_content" in result
             finally:
-                import contextlib
-
                 with contextlib.suppress(PermissionError, FileNotFoundError):
                     tmp_path.unlink()
 

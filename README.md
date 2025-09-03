@@ -137,12 +137,61 @@ class Document(StorageModel):
 - **Data Portability** - Standard format exports
 - **Consent Tracking** - Document processing permissions
 
+## Import Conventions
+
+**BREAKING CHANGE (2025-09-02):** All internal imports now use absolute paths with the `files.` prefix.
+
+### Internal Module Imports
+All imports within the files module must use the `files.backend` prefix:
+
+```python
+# Correct - Absolute imports with files prefix
+from files.backend.extractors.pdf_extractor import PDFExtractor
+from files.backend.extractors.docx_extractor import DOCXExtractor
+from files.backend.mcp.filesys.tools.filesystem_tools import list_dir_tool
+
+# Incorrect - Relative imports (deprecated)
+from .extractors import PDFExtractor
+from ..tools.filesystem_tools import list_dir_tool
+```
+
+### Cross-Module Imports
+When importing from other orchestrator modules, use the `base.backend` prefix:
+
+```python
+# Correct - Cross-module import
+from base.backend.utils.standard_imports import setup_imports
+
+# Configuration import from orchestrator
+from base.backend.config.loader import orchestrator_config
+```
+
+### Entry Point Scripts
+Entry point scripts must set up the module path before importing:
+
+```python
+#!/usr/bin/env python
+"""Entry point script pattern."""
+
+from pathlib import Path
+import sys
+
+# Add both files and base to Python path
+MODULE_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(MODULE_ROOT))
+sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
+
+# Now safe to import
+from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
+```
+
 ## Usage Examples
 
 ### Document Extraction
 
 ```python
-from backend.extractors import PDFExtractor, DOCXExtractor
+from files.backend.extractors.pdf_extractor import PDFExtractor
+from files.backend.extractors.docx_extractor import DOCXExtractor
 
 # Extract PDF
 pdf_extractor = PDFExtractor()
@@ -161,10 +210,10 @@ print(f"Found {len(result.tables)} tables")
 ### MCP Server Usage
 
 ```python
-from backend.mcp.filesys.server import FilesysMCPServer
+from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
 
 # Initialize server
-server = FilesysMCPServer()
+server = FilesysFastMCPServer()
 
 # Index a document
 result = await server.handle_tool_call(
@@ -183,7 +232,7 @@ print(f"Document indexed with ID: {result['document_id']}")
 ### Image Analysis with Gemini
 
 ```python
-from backend.services.gemini_client import GeminiClient
+from files.backend.services.gemini_client import GeminiClient
 
 # Initialize client
 client = GeminiClient(api_key="your-key")
@@ -201,16 +250,15 @@ async with client:
 ### Document Search
 
 ```python
-from backend.mcp.filesys.fast_search import FastSearch
+from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 
 # Initialize search
-search = FastSearch()
+searcher = FastFileSearcher("/workspace")
 
 # Search documents
-results = await search.search_files(
-    directory="/docs",
-    pattern="machine learning",
-    file_type="pdf",
+results = await searcher.search_files(
+    content_keywords=["machine learning"],
+    path_pattern="*.pdf",
     max_results=10
 )
 

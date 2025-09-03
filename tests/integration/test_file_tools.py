@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, AsyncContextManager
 
 import pytest
+from base.backend.utils.environment_setup import EnvironmentSetup
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import TextContent
@@ -42,7 +43,6 @@ class TestFileTools:
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-        from base.backend.utils.environment_setup import EnvironmentSetup
 
         return Path(EnvironmentSetup.get_module_venv_python(Path(__file__)))
 

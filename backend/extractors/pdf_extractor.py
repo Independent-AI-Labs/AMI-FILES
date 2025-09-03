@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar
 
+import fitz  # PyMuPDF
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
@@ -38,13 +39,6 @@ class PDFExtractor(DocumentExtractor):
             extraction_method="PyMuPDF",
             processing_time_ms=0,
         )
-
-        try:
-            import fitz  # PyMuPDF
-        except ImportError:
-            result.error_messages.append("PyMuPDF not installed")
-            result.processing_time_ms = int((time.time() - start_time) * 1000)
-            return result
 
         try:
             # Open PDF with PyMuPDF
@@ -152,8 +146,6 @@ class PDFExtractor(DocumentExtractor):
         images = []
 
         try:
-            import fitz
-
             for page_num in range(pdf.page_count):
                 page = pdf[page_num]
 

@@ -57,17 +57,17 @@ Replaces content within files:
 ## Usage
 
 ### Standalone Server (stdio)
-```python
-python backend/mcp/filesys/run_stdio.py --root-dir /path/to/root
+```bash
+python scripts/run_filesys.py --root-dir /path/to/root
 ```
 
 ### Integration with MCP Client
 
 ```python
-from services.mcp.filesys.server import FilesysMCPServer
+from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
 
 # Create server with specific root directory
-server = FilesysMCPServer(root_dir="/path/to/files")
+server = FilesysFastMCPServer(root_dir="/path/to/files")
 
 # Run with stdio transport
 await server.run_stdio()

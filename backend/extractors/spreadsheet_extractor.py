@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import logging
 import time
 from pathlib import Path
 from typing import Any, ClassVar
 
+import openpyxl
+import pandas as pd
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
@@ -83,8 +86,6 @@ class SpreadsheetExtractor(DocumentExtractor):
         tables: list[dict[str, Any]] = []
 
         try:
-            import csv
-
             delimiter = "\t" if is_tsv else ","
 
             with open(file_path, encoding="utf-8-sig") as file:
@@ -122,8 +123,6 @@ class SpreadsheetExtractor(DocumentExtractor):
 
             # Try with pandas as fallback
             try:
-                import pandas as pd
-
                 if is_tsv:
                     df = pd.read_csv(file_path, sep="\t")
                 else:
@@ -142,8 +141,6 @@ class SpreadsheetExtractor(DocumentExtractor):
         tables: list[dict[str, Any]] = []
 
         try:
-            import openpyxl
-
             wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
 
             for sheet_name in wb.sheetnames:
@@ -194,8 +191,6 @@ class SpreadsheetExtractor(DocumentExtractor):
 
             # Try with pandas as fallback
             try:
-                import pandas as pd
-
                 excel_file = pd.ExcelFile(file_path)
 
                 for sheet_name in excel_file.sheet_names:
@@ -217,8 +212,6 @@ class SpreadsheetExtractor(DocumentExtractor):
     def _dataframe_to_table(self, df: Any, name: str) -> dict[str, Any] | None:
         """Convert pandas DataFrame to table dict"""
         try:
-            import pandas as pd
-
             # Convert DataFrame to records
             records = df.to_dict("records")
 
