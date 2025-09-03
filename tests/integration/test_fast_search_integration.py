@@ -4,9 +4,10 @@ import time
 from pathlib import Path
 
 import pytest
+from loguru import logger
+
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
-from loguru import logger
 
 
 class TestFastSearchIntegration:

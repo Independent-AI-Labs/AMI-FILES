@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 from base.backend.utils.standard_imports import setup_imports
+from loguru import logger
+from mcp.server import FastMCP
+
 from files.backend.mcp.filesys.tools.document_tools import (
     index_document_tool,
     read_document_tool,
@@ -39,8 +42,6 @@ from files.backend.mcp.filesys.tools.python_tools import (
     python_task_cancel_tool,
     python_task_status_tool,
 )
-from loguru import logger
-from mcp.server import FastMCP
 
 # Use standard import setup
 

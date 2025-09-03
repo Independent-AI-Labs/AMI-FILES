@@ -7,10 +7,14 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar
 
-import pytesseract
-from files.backend.extractors.base import DocumentExtractor, ExtractionResult
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
 from PIL import Image
 from PIL.ExifTags import TAGS
+
+from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
 
@@ -171,15 +175,16 @@ class ImageExtractor(DocumentExtractor):
 
     async def _perform_ocr(self, file_path: Path) -> str | None:
         """Perform OCR on image to extract text"""
+        if pytesseract is None:
+            logger.debug("pytesseract not installed, skipping OCR")
+            return None
+
         try:
             img = Image.open(file_path)
             text = pytesseract.image_to_string(img)
 
             return text.strip() if text.strip() else None
 
-        except ImportError:
-            logger.debug("pytesseract not installed, skipping OCR")
-            return None
         except Exception as e:
-            logger.warning(f"OCR failed: {e}")
+            logger.debug(f"OCR failed: {e}")
             return None

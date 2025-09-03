@@ -10,8 +10,9 @@ from pathlib import Path
 from quopri import decodestring, encodestring
 from typing import Any
 
-from files.backend.config import files_config
 from loguru import logger
+
+from files.backend.config import files_config
 
 
 class OffsetType(Enum):

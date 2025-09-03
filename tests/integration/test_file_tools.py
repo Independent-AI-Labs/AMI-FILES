@@ -3,12 +3,13 @@
 
 import asyncio
 import base64
+import contextlib
 import json
 import quopri
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, AsyncContextManager
+from typing import Any
 
 import pytest
 from base.backend.utils.environment_setup import EnvironmentSetup
@@ -48,7 +49,7 @@ class TestFileTools:
 
     async def _get_client_session(
         self, venv_python: Path, server_script: Path, temp_dir: str
-    ) -> AsyncContextManager[tuple[Any, Any]]:
+    ) -> contextlib.AbstractAsyncContextManager[tuple[Any, Any]]:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),

@@ -2,13 +2,14 @@
 
 import tempfile
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
+from loguru import logger
+
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
-from loguru import logger
 
 
 class TestFastFileSearcher:

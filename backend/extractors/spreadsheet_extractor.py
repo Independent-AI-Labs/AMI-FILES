@@ -10,6 +10,7 @@ from typing import Any, ClassVar
 
 import openpyxl
 import pandas as pd
+
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)

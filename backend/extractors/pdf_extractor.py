@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 import fitz  # PyMuPDF
+
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)

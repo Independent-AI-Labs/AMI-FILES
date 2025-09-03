@@ -4,8 +4,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from files.backend.mcp.filesys.utils.path_utils import validate_path
 from loguru import logger
+
+from files.backend.mcp.filesys.utils.path_utils import validate_path
 
 
 async def git_status_tool(

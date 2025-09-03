@@ -5,6 +5,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 from files.backend.mcp.filesys.utils.file_utils import (
     FileUtils,
@@ -14,7 +16,6 @@ from files.backend.mcp.filesys.utils.file_utils import (
 )
 from files.backend.mcp.filesys.utils.path_utils import validate_path
 from files.backend.mcp.filesys.utils.precommit_validator import PreCommitValidator
-from loguru import logger
 
 
 async def list_dir_tool(

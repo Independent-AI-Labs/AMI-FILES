@@ -2,10 +2,11 @@
 
 import os
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
+
 from files.backend.mcp.filesys.filesys_server import (
     FilesysFastMCPServer as FilesysMCPServer,
 )

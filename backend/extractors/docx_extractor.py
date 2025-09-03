@@ -10,8 +10,9 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from docx import Document
-from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 from PIL import Image
+
+from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
 
