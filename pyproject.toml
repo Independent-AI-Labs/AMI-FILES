@@ -1,0 +1,81 @@
+[project]
+name = "ami-files"
+version = "0.1.0"
+description = "Files module for AMI orchestrator"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [ { name = "AMI Team" } ]
+
+dependencies = [
+  # Files module specific
+  "pyahocorasick==2.2.0",
+  "regex==2025.7.34",
+  "PyYAML==6.0.2",
+  # Database connectivity
+  "asyncpg==0.30.0",
+  # Document processing
+  "PyMuPDF==1.26.3",
+  "python-docx==1.1.0",
+  "openpyxl==3.1.2",
+  "pandas==2.2.0",
+  "Pillow==11.3.0",
+  # deps for pandas/openpyxl
+  "numpy==1.26.4",
+  "python-dateutil==2.9.0.post0",
+  "pytz==2025.2",
+  "six==1.17.0",
+  "et-xmlfile==2.0.0",
+  "lxml==6.0.0",
+  "charset-normalizer==3.4.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-aiohttp==1.0.5",
+  "pytest-cov==6.2.1",
+  "pytest-timeout==2.4.0",
+  "pytest-mock==3.14.1",
+  "faker==37.5.3",
+  "ruff==0.12.8",
+  "pre-commit==4.3.0",
+  "mypy==1.17.1",
+]
+
+[project.scripts]
+run-filesys = "files.scripts.run_filesys:main"
+run-filesys-fastmcp = "files.scripts.run_filesys_fastmcp:main"
+run-files-tests = "files.scripts.run_tests:main"
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["files*"]
+
+[tool.uv]
+package = true
+dev-dependencies = [
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-aiohttp==1.0.5",
+  "pytest-cov==6.2.1",
+  "pytest-timeout==2.4.0",
+  "pytest-mock==3.14.1",
+  "faker==37.5.3",
+  "ruff==0.12.8",
+  "pre-commit==4.3.0",
+  "mypy==1.17.1",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+
