@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Integration tests for Filesystem tools using FastMCP server with MCP client."""
 
 import asyncio
@@ -7,8 +6,9 @@ import json
 import quopri
 import sys
 import tempfile
+from contextlib import AbstractAsyncContextManager as AsyncContextManager
 from pathlib import Path
-from typing import Any, AsyncContextManager
+from typing import Any
 
 import pytest
 from base.backend.utils.environment_setup import EnvironmentSetup

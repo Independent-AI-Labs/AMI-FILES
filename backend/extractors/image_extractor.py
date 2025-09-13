@@ -162,7 +162,7 @@ class ImageExtractor(DocumentExtractor):
                 return value.decode("utf-8")
             except Exception:
                 return str(value)
-        elif isinstance(value, (tuple, list)):
+        elif isinstance(value, tuple | list):
             return [self._clean_exif_value(v) for v in value]
         elif isinstance(value, dict):
             return {k: self._clean_exif_value(v) for k, v in value.items()}

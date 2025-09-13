@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Integration tests for Filesys FastMCP server using official MCP client."""
 
 import json

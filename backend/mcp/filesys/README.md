@@ -56,10 +56,8 @@ Replaces content within files:
 
 ## Usage
 
-### Standalone Server (stdio)
-```bash
-python scripts/run_filesys.py --root-dir /path/to/root
-```
+### Programmatic Startup
+Use the server class from your own runner or integration.
 
 ### Integration with MCP Client
 
@@ -88,7 +86,7 @@ The server includes comprehensive test coverage:
 - Error handling validation
 - Protocol compliance verification
 
-Run tests:
+Run tests from repository root:
 ```bash
-python scripts/run_tests.py
+python scripts/run_tests.py -k files
 ```

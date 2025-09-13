@@ -1,8 +1,8 @@
 """Tests for path validation with absolute and relative paths."""
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 from files.backend.mcp.filesys.utils.file_utils import FileUtils

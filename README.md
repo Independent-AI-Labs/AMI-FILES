@@ -46,14 +46,7 @@ Production-ready file system control via Model Context Protocol for AI agents an
 | `git_log` | View history | Filtering, limits |
 | `git_push` | Push changes | Dry run, force |
 
-**Transport Modes:**
-```bash
-# CLI integration (stdio)
-python backend/mcp/filesys/run_filesys.py --root-dir /safe/workspace
-
-# Network access (websocket)
-python backend/mcp/filesys/run_filesys.py --transport websocket --port 8766
-```
+Transport and runners are module-specific. For programmatic use, import `FilesysFastMCPServer` and configure the desired transport in your own runner.
 
 ### 📄 Compliant Document Processing
 
@@ -77,22 +70,7 @@ results = await searcher.search_files(
 
 ## Quick Start
 
-```bash
-# Clone and setup
-git clone https://github.com/Independent-AI-Labs/AMI-FILES.git
-cd AMI-FILES
-uv venv .venv && uv pip install -r requirements.txt
-
-# Run MCP server
-python backend/mcp/filesys/run_filesys.py --root-dir ./workspace
-# Windows:
-.venv\Scripts\activate
-# Linux/Mac:
-source .venv/bin/activate
-
-# Install dependencies
-uv pip install -r requirements.txt
-```
+See the orchestrator root README for environment setup. Within a Python environment, use the server classes directly or follow module-specific runner guidance when available.
 
 ## Configuration
 
@@ -303,14 +281,11 @@ AMI-FILES/
 ## Testing
 
 ```bash
-# Run all tests
-python scripts/run_tests.py
+# From repository root
+python scripts/run_tests.py -k files
 
-# Run specific test
-python scripts/run_tests.py tests/unit/test_filesys_mcp_server.py
-
-# Run with coverage
-python -m pytest --cov=backend --cov-report=html
+# Or directly with pytest
+pytest -k files --cov=files/backend --cov-report=term-missing
 ```
 
 ## API Reference

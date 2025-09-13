@@ -1,6 +1,5 @@
 """Enhanced file content formatter with line numbers and better display."""
 
-from typing import Optional
 
 
 class FileFormatter:
@@ -10,7 +9,7 @@ class FileFormatter:
     def format_with_line_numbers(
         content: str,
         start_line: int = 1,
-        highlight_lines: Optional[list[int]] = None,
+        highlight_lines: list[int] | None = None,
     ) -> str:
         """Format content with line numbers.
 

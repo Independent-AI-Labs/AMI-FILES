@@ -122,7 +122,7 @@ class GeminiClient:
                 error_text = await response.text()
                 msg = f"Gemini API error ({response.status}): {error_text}"
                 raise ValueError(msg)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             msg = "Gemini API request timed out"
             raise TimeoutError(msg) from e
         except Exception:
