@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-"""Files module setup - uses base AMIModuleSetup."""
+"""Files module setup - uses base AMIModuleSetup (stdlib logging only)."""
 
+import logging
 import subprocess
 import sys
 from pathlib import Path
 
-from loguru import logger
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 # Get this module's root
 MODULE_ROOT = Path(__file__).resolve().parent

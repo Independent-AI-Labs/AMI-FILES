@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from files.backend.extractors import (
     DocumentExtractor,
@@ -28,7 +28,7 @@ async def index_document_tool(
     path: str,
     extract_tables: bool = True,
     extract_images: bool = False,
-    storage_backends: Optional[list[str]] = None,
+    storage_backends: list[str] | None = None,
 ) -> dict[str, Any]:
     """Parse and index documents for searchable storage.
 
@@ -160,7 +160,7 @@ async def index_document_tool(
 
 async def read_document_tool(
     path: str,
-    extraction_template: Optional[dict[str, Any]] = None,
+    extraction_template: dict[str, Any] | None = None,
     extract_tables: bool = True,
     extract_images: bool = False,
 ) -> dict[str, Any]:
@@ -243,7 +243,7 @@ async def read_document_tool(
 
 async def read_image_tool(
     path: str,
-    instruction: Optional[str] = None,
+    instruction: str | None = None,
     perform_ocr: bool = True,
     extract_chart_data: bool = False,
 ) -> dict[str, Any]:
@@ -353,7 +353,7 @@ async def read_image_tool(
         return {"error": str(e)}
 
 
-async def _get_extractor(file_path: Path) -> Optional[DocumentExtractor]:
+async def _get_extractor(file_path: Path) -> DocumentExtractor | None:
     """Get appropriate extractor for file type."""
     extractors = [
         PDFExtractor(),

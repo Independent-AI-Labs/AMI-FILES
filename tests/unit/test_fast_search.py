@@ -2,8 +2,8 @@
 
 import tempfile
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
