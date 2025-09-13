@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -207,7 +207,7 @@ class DocumentExtractor(ABC):
             # Check for numbers
             try:
                 all_numbers = all(
-                    isinstance(v, (int, float))
+                    isinstance(v, int | float)
                     or str(v).replace(".", "").replace("-", "").isdigit()
                     for v in values
                 )
@@ -234,7 +234,7 @@ class DocumentExtractor(ABC):
                             if v:
                                 # Parse and make timezone-aware for DTZ compliance
                                 datetime.strptime(str(v), pattern).replace(
-                                    tzinfo=timezone.utc
+                                    tzinfo=UTC
                                 )
                         # If we get here, all values matched the pattern
                         data_type = "datetime"
