@@ -12,6 +12,18 @@ from typing import Any
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+MIN_HEADING_LENGTH = 4
+MAX_HEADING_LENGTH = 100
+MAX_HEADING_LEVEL = 6
+MAX_SAMPLE_ROWS = 10
+BOOLEAN_VALUES = {"true", "false", "yes", "no", "1", "0", "t", "f", "y", "n"}
+DATE_PATTERNS: tuple[str, ...] = (
+    "%Y-%m-%d",
+    "%m/%d/%Y",
+    "%d/%m/%Y",
+    "%Y/%m/%d",
+    "%Y-%m-%d %H:%M:%S",
+)
 
 
 class ExtractionResult(BaseModel):
@@ -79,8 +91,8 @@ class DocumentExtractor(ABC):
 
         # Check file permissions
         try:
-            with open(file_path, "rb") as f:
-                f.read(1)
+            with file_path.open("rb") as file_handle:
+                file_handle.read(1)
         except PermissionError as e:
             msg = f"Cannot read file {file_path}: {e}"
             raise PermissionError(msg) from e
@@ -151,7 +163,7 @@ class DocumentExtractor(ABC):
             return True
 
         # All caps headings
-        return bool(line.isupper() and len(line) > 3 and len(line) < 100)
+        return bool(line.isupper() and MIN_HEADING_LENGTH < len(line) < MAX_HEADING_LENGTH)
 
     def _get_heading_level(self, line: str) -> int:
         """Determine heading level"""
@@ -160,106 +172,80 @@ class DocumentExtractor(ABC):
         # Markdown headings
         if line.startswith("#"):
             level = len(line) - len(line.lstrip("#"))
-            return min(level, 6)
+            return min(level, MAX_HEADING_LEVEL)
 
         # Numbered headings
 
         match = re.match(r"^(\d+(?:\.\d+)*)", line)
         if match:
             parts = match.group(1).split(".")
-            return min(len(parts), 6)
+            return min(len(parts), MAX_HEADING_LEVEL)
 
         # Default to level 2 for other headings
         return 2
 
     def _clean_heading(self, line: str) -> str:
         """Clean heading text"""
-        line = line.strip()
+        stripped = line.strip()
+        without_markdown = stripped.lstrip("#").strip()
+        return re.sub(r"^\d+(\.\d+)*\.?\s+", "", without_markdown)
 
-        # Remove markdown markers
-        line = line.lstrip("#").strip()
-
-        # Remove numbering
-
-        line = re.sub(r"^\d+(\.\d+)*\.?\s+", "", line)
-
-        return line
-
-    def infer_table_schema(
-        self, headers: list[str], rows: list[dict[str, Any]]
-    ) -> dict[str, str]:
+    def infer_table_schema(self, headers: list[str], rows: list[dict[str, Any]]) -> dict[str, str]:
         """Infer data types for table columns"""
         schema = {}
-
         for header in headers:
-            # Sample values from column
-            values = [
-                row.get(header) for row in rows[:10] if row.get(header) is not None
-            ]
-
-            if not values:
-                schema[header] = "text"
-                continue
-
-            # Try to infer type
-            data_type = "text"
-
-            # Check for numbers
-            try:
-                all_numbers = all(
-                    isinstance(v, int | float)
-                    or str(v).replace(".", "").replace("-", "").isdigit()
-                    for v in values
-                )
-                if all_numbers:
-                    has_decimal = any("." in str(v) for v in values)
-                    data_type = "float" if has_decimal else "integer"
-            except Exception:
-                logger.debug("Failed to detect numeric type, treating as text")
-
-            # Check for dates
-            if data_type == "text":
-                date_patterns = [
-                    "%Y-%m-%d",
-                    "%m/%d/%Y",
-                    "%d/%m/%Y",
-                    "%Y/%m/%d",
-                    "%Y-%m-%d %H:%M:%S",
-                ]
-
-                for pattern in date_patterns:
-                    try:
-                        # Test if all values match this date pattern
-                        for v in values:
-                            if v:
-                                # Parse and make timezone-aware for DTZ compliance
-                                datetime.strptime(str(v), pattern).replace(
-                                    tzinfo=UTC
-                                )
-                        # If we get here, all values matched the pattern
-                        data_type = "datetime"
-                        break
-                    except ValueError:
-                        logger.debug(f"Date pattern {pattern} did not match")
-
-            # Check for booleans
-            if data_type == "text":
-                bool_values = {
-                    "true",
-                    "false",
-                    "yes",
-                    "no",
-                    "1",
-                    "0",
-                    "t",
-                    "f",
-                    "y",
-                    "n",
-                }
-                all_bools = all(str(v).lower() in bool_values for v in values)
-                if all_bools:
-                    data_type = "boolean"
-
-            schema[header] = data_type
-
+            values = self._sample_column_values(rows, header)
+            schema[header] = self._infer_column_type(values)
         return schema
+
+    def _sample_column_values(self, rows: list[dict[str, Any]], header: str) -> list[Any]:
+        """Collect representative non-null samples for a column."""
+        return [row.get(header) for row in rows[:MAX_SAMPLE_ROWS] if row.get(header) is not None]
+
+    def _infer_column_type(self, values: list[Any]) -> str:
+        """Infer a column data type from sampled values."""
+        if not values:
+            return "text"
+
+        if self._is_numeric_column(values):
+            return "float" if self._has_decimal(values) else "integer"
+
+        if self._is_datetime_column(values):
+            return "datetime"
+
+        if self._is_boolean_column(values):
+            return "boolean"
+
+        return "text"
+
+    def _is_numeric_column(self, values: list[Any]) -> bool:
+        """Return True if all values can be treated as numbers."""
+        try:
+            return all(isinstance(value, int | float) or str(value).replace(".", "").replace("-", "").isdigit() for value in values)
+        except Exception:  # pragma: no cover - defensive guard
+            logger.debug("Failed to detect numeric type, treating as text")
+            return False
+
+    def _has_decimal(self, values: list[Any]) -> bool:
+        """Check whether any sampled numeric value contains decimal precision."""
+        return any("." in str(value) for value in values)
+
+    def _is_datetime_column(self, values: list[Any]) -> bool:
+        """Return True if values match a known datetime pattern."""
+        return any(self._all_values_match_datetime(values, pattern) for pattern in DATE_PATTERNS)
+
+    def _all_values_match_datetime(self, values: list[Any], pattern: str) -> bool:
+        """Check whether all values match the supplied datetime pattern."""
+        for value in values:
+            text = str(value)
+            if not text:
+                return False
+            try:
+                datetime.strptime(text, pattern).replace(tzinfo=UTC)
+            except ValueError:
+                return False
+        return True
+
+    def _is_boolean_column(self, values: list[Any]) -> bool:
+        """Return True if values map cleanly to boolean representations."""
+        return all(str(value).lower() in BOOLEAN_VALUES for value in values)

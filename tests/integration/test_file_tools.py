@@ -36,9 +36,7 @@ class TestFileTools:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
@@ -46,9 +44,7 @@ class TestFileTools:
 
         return Path(EnvironmentSetup.get_module_venv_python(Path(__file__)))
 
-    async def _get_client_session(
-        self, venv_python: Path, server_script: Path, temp_dir: str
-    ) -> AsyncContextManager[tuple[Any, Any]]:
+    async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> AsyncContextManager[tuple[Any, Any]]:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),
@@ -58,15 +54,11 @@ class TestFileTools:
         return stdio_client(server_params)
 
     @pytest.mark.asyncio
-    async def test_complete_file_workflow(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_complete_file_workflow(self, venv_python: Path, server_script: Path) -> None:
         """Test a complete file operation workflow."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
@@ -75,9 +67,7 @@ class TestFileTools:
                 # 1. Create directory structure
                 result = await session.call_tool(
                     "create_dirs",
-                    arguments={
-                        "paths": ["project/src", "project/tests", "project/docs"]
-                    },
+                    arguments={"paths": ["project/src", "project/tests", "project/docs"]},
                 )
                 assert result is not None
 
@@ -110,9 +100,7 @@ class TestFileTools:
                     assert result is not None
 
                 # 3. List directory structure
-                result = await session.call_tool(
-                    "list_dir", arguments={"path": "project", "recursive": True}
-                )
+                result = await session.call_tool("list_dir", arguments={"path": "project", "recursive": True})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -145,9 +133,7 @@ class TestFileTools:
                 assert result is not None
 
                 # 6. Read modified file
-                result = await session.call_tool(
-                    "read_from_file", arguments={"path": "project/src/main.py"}
-                )
+                result = await session.call_tool("read_from_file", arguments={"path": "project/src/main.py"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -171,18 +157,14 @@ class TestFileTools:
                     assert result is not None
 
                 # 8. Verify replacements
-                result = await session.call_tool(
-                    "read_from_file", arguments={"path": "project/src/utils.py"}
-                )
+                result = await session.call_tool("read_from_file", arguments={"path": "project/src/utils.py"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "async def helper" in response["content"]
 
                 # 9. Clean up specific files
-                result = await session.call_tool(
-                    "delete_paths", arguments={"paths": ["project/.gitignore"]}
-                )
+                result = await session.call_tool("delete_paths", arguments={"paths": ["project/.gitignore"]})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -190,9 +172,7 @@ class TestFileTools:
                 assert len(response["deleted"]) == 1
 
                 # 10. Final directory listing
-                result = await session.call_tool(
-                    "list_dir", arguments={"path": "project"}
-                )
+                result = await session.call_tool("list_dir", arguments={"path": "project"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -202,15 +182,11 @@ class TestFileTools:
                 assert ".gitignore" not in names
 
     @pytest.mark.asyncio
-    async def test_large_file_handling(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_large_file_handling(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of large files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
@@ -243,9 +219,7 @@ class TestFileTools:
 
                 # Find in large file - Add marker in the middle
                 middle = len(large_content) // 2
-                marked_content = (
-                    large_content[:middle] + "MARKER" + large_content[middle + 6 :]
-                )
+                marked_content = large_content[:middle] + "MARKER" + large_content[middle + 6 :]
 
                 result = await session.call_tool(
                     "write_to_file",
@@ -268,15 +242,11 @@ class TestFileTools:
                 assert any("large_marked.txt" in path for path in paths)
 
     @pytest.mark.asyncio
-    async def test_concurrent_operations(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_concurrent_operations(self, venv_python: Path, server_script: Path) -> None:
         """Test concurrent file operations."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
@@ -300,9 +270,7 @@ class TestFileTools:
                 # Read multiple files concurrently
                 tasks = []
                 for i in range(10):
-                    task = session.call_tool(
-                        "read_from_file", arguments={"path": f"concurrent_{i}.txt"}
-                    )
+                    task = session.call_tool("read_from_file", arguments={"path": f"concurrent_{i}.txt"})
                     tasks.append(task)
 
                 results = await asyncio.gather(*tasks)
@@ -315,24 +283,18 @@ class TestFileTools:
 
                 # Delete all concurrently created files
                 paths = [f"concurrent_{i}.txt" for i in range(10)]
-                result = await session.call_tool(
-                    "delete_paths", arguments={"paths": paths}
-                )
+                result = await session.call_tool("delete_paths", arguments={"paths": paths})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert len(response["deleted"]) == 10
 
     @pytest.mark.asyncio
-    async def test_encoding_formats(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_encoding_formats(self, venv_python: Path, server_script: Path) -> None:
         """Test different encoding formats."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
@@ -384,9 +346,7 @@ class TestFileTools:
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "content" in response
-                decoded = base64.b64decode(response["content"]).decode(
-                    "utf-8", errors="replace"
-                )
+                decoded = base64.b64decode(response["content"]).decode("utf-8", errors="replace")
                 assert "Binary" in decoded
                 assert "Data" in decoded
 
@@ -395,18 +355,14 @@ class TestFileTools:
         """Test error handling in various scenarios."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
                 await session.initialize()
 
                 # Read non-existent file
-                result = await session.call_tool(
-                    "read_from_file", arguments={"path": "nonexistent.txt"}
-                )
+                result = await session.call_tool("read_from_file", arguments={"path": "nonexistent.txt"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -414,9 +370,7 @@ class TestFileTools:
                 assert "does not exist" in response["error"]
 
                 # List non-existent directory
-                result = await session.call_tool(
-                    "list_dir", arguments={"path": "nonexistent_dir"}
-                )
+                result = await session.call_tool("list_dir", arguments={"path": "nonexistent_dir"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -474,15 +428,11 @@ class TestFileTools:
                 assert "error" in response
 
     @pytest.mark.asyncio
-    async def test_protocol_compliance(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_protocol_compliance(self, venv_python: Path, server_script: Path) -> None:
         """Test MCP protocol compliance."""
         with tempfile.TemporaryDirectory() as temp_dir:
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as session,
             ):
                 # Initialize
@@ -507,17 +457,13 @@ class TestFileTools:
                         assert isinstance(tool.inputSchema["required"], list)
 
                 # Test tool execution returns proper format
-                call_result = await session.call_tool(
-                    "list_dir", arguments={"path": "."}
-                )
+                call_result = await session.call_tool("list_dir", arguments={"path": "."})
                 assert call_result is not None
                 assert isinstance(call_result.content, list)
                 assert len(call_result.content) > 0
 
                 # Error responses should have error key in the response
-                call_result = await session.call_tool(
-                    "read_from_file", arguments={"path": "nonexistent.txt"}
-                )
+                call_result = await session.call_tool("read_from_file", arguments={"path": "nonexistent.txt"})
                 assert call_result is not None
                 response_text = get_text_content(call_result)
                 response = json.loads(response_text)

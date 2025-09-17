@@ -55,9 +55,7 @@ class TestPreCommitExtensions:
         validator = PreCommitValidator()
 
         # Test with a non-source file
-        result = await validator.validate_content(
-            Path("document.txt"), "Some text content", encoding="utf-8"
-        )
+        result = await validator.validate_content(Path("document.txt"), "Some text content", encoding="utf-8")
 
         # Should pass validation without running pre-commit
         assert result["valid"] is True

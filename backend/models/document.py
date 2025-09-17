@@ -50,18 +50,10 @@ class Document(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "graph": StorageConfig.from_dict(
-                storage_config.get_storage_config("dgraph")
-            ),
-            "vector": StorageConfig.from_dict(
-                storage_config.get_storage_config("pgvector")
-            ),
-            "relational": StorageConfig.from_dict(
-                storage_config.get_storage_config("postgres")
-            ),
-            "inmem": StorageConfig.from_dict(
-                storage_config.get_storage_config("redis")
-            ),
+            "graph": StorageConfig.from_dict(storage_config.get_storage_config("dgraph")),
+            "vector": StorageConfig.from_dict(storage_config.get_storage_config("pgvector")),
+            "relational": StorageConfig.from_dict(storage_config.get_storage_config("postgres")),
+            "inmem": StorageConfig.from_dict(storage_config.get_storage_config("redis")),
         }
         path = "documents"
         indexes: ClassVar[list[dict[str, Any]]] = [
@@ -118,15 +110,9 @@ class DocumentSection(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "graph": StorageConfig.from_dict(
-                storage_config.get_storage_config("dgraph")
-            ),
-            "vector": StorageConfig.from_dict(
-                storage_config.get_storage_config("pgvector")
-            ),
-            "inmem": StorageConfig.from_dict(
-                storage_config.get_storage_config("redis")
-            ),
+            "graph": StorageConfig.from_dict(storage_config.get_storage_config("dgraph")),
+            "vector": StorageConfig.from_dict(storage_config.get_storage_config("pgvector")),
+            "inmem": StorageConfig.from_dict(storage_config.get_storage_config("redis")),
         }
         path = "document_sections"
         indexes: ClassVar[list[dict[str, Any]]] = [
@@ -151,13 +137,9 @@ class DocumentTable(StorageModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
 
     # Schema information
-    table_schema: dict[str, str] = Field(
-        default_factory=dict
-    )  # Column name -> data type
+    table_schema: dict[str, str] = Field(default_factory=dict)  # Column name -> data type
     primary_key: str | None = None
-    foreign_keys: dict[str, str] = Field(
-        default_factory=dict
-    )  # Column -> referenced table
+    foreign_keys: dict[str, str] = Field(default_factory=dict)  # Column -> referenced table
 
     # Storage
     relational_table: str | None = None  # PostgreSQL table name
@@ -167,15 +149,9 @@ class DocumentTable(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "relational": StorageConfig.from_dict(
-                storage_config.get_storage_config("postgres")
-            ),
-            "graph": StorageConfig.from_dict(
-                storage_config.get_storage_config("dgraph")
-            ),
-            "inmem": StorageConfig.from_dict(
-                storage_config.get_storage_config("redis")
-            ),
+            "relational": StorageConfig.from_dict(storage_config.get_storage_config("postgres")),
+            "graph": StorageConfig.from_dict(storage_config.get_storage_config("dgraph")),
+            "inmem": StorageConfig.from_dict(storage_config.get_storage_config("redis")),
         }
         path = "document_tables"
         indexes: ClassVar[list[dict[str, Any]]] = [
@@ -223,7 +199,6 @@ class DocumentImage(StorageModel):
     detected_objects: list[dict[str, Any]] = Field(default_factory=list)
     chart_data: dict[str, Any] | None = None
 
-    # Embeddings (auto-generated)
     visual_embedding: list[float] | None = None
     text_embedding: list[float] | None = None
 
@@ -236,15 +211,9 @@ class DocumentImage(StorageModel):
 
     class Meta:
         storage_configs: ClassVar[dict[str, StorageConfig]] = {
-            "vector": StorageConfig.from_dict(
-                storage_config.get_storage_config("pgvector")
-            ),
-            "graph": StorageConfig.from_dict(
-                storage_config.get_storage_config("dgraph")
-            ),
-            "inmem": StorageConfig.from_dict(
-                storage_config.get_storage_config("redis")
-            ),
+            "vector": StorageConfig.from_dict(storage_config.get_storage_config("pgvector")),
+            "graph": StorageConfig.from_dict(storage_config.get_storage_config("dgraph")),
+            "inmem": StorageConfig.from_dict(storage_config.get_storage_config("redis")),
         }
         path = "document_images"
         indexes: ClassVar[list[dict[str, Any]]] = [
@@ -263,11 +232,7 @@ class DocumentImage(StorageModel):
         if self.detected_objects:
             data["detected_objects"] = [dict(obj) for obj in self.detected_objects]
         if self.chart_data:
-            data["chart_data"] = (
-                dict(self.chart_data)
-                if isinstance(self.chart_data, dict)
-                else self.chart_data
-            )
+            data["chart_data"] = dict(self.chart_data) if isinstance(self.chart_data, dict) else self.chart_data
         if self.visual_embedding:
             data["visual_embedding"] = list(self.visual_embedding)
         if self.text_embedding:

@@ -16,6 +16,8 @@ from files.backend.mcp.filesys.utils.path_utils import validate_path
 from files.backend.mcp.filesys.utils.precommit_validator import PreCommitValidator
 from loguru import logger
 
+LINE_BREAK = "\n"
+
 
 async def list_dir_tool(
     root_dir: Path,
@@ -25,9 +27,7 @@ async def list_dir_tool(
     limit: int = 100,
 ) -> dict[str, Any]:
     """List directory contents."""
-    logger.debug(
-        f"Listing directory: path={path}, recursive={recursive}, pattern={pattern}, limit={limit}"
-    )
+    logger.debug(f"Listing directory: path={path}, recursive={recursive}, pattern={pattern}, limit={limit}")
 
     try:
         # Validate and resolve the path
@@ -90,7 +90,7 @@ async def create_dirs_tool(root_dir: Path, paths: list[str]) -> dict[str, Any]:
     try:
         created = []
         for path_str in paths:
-            safe_path = validate_path(root_dir, path_str)
+            safe_path = validate_path(root_dir, path_str, allow_write=False)
             safe_path.mkdir(parents=True, exist_ok=True)
             created.append(str(safe_path.relative_to(root_dir)))
 
@@ -112,9 +112,7 @@ async def find_paths_tool(
     recursive: bool = True,
 ) -> dict[str, Any]:
     """Find paths matching patterns or keywords."""
-    logger.debug(
-        f"Finding paths: patterns={patterns}, path={path}, recursive={recursive}"
-    )
+    logger.debug(f"Finding paths: patterns={patterns}, path={path}, recursive={recursive}")
 
     try:
         validated_path = validate_path(root_dir, path)
@@ -122,55 +120,23 @@ async def find_paths_tool(
         if not validated_path.is_dir():
             return {"error": f"Path is not a directory: {path}"}
 
-        found = []
-
-        # If patterns provided, use glob matching
+        matches: list[str] = []
         if patterns:
-            for pattern in patterns:
-                if recursive:
-                    for item in validated_path.rglob(pattern):
-                        found.append(str(item.relative_to(root_dir)))
-                else:
-                    for item in validated_path.glob(pattern):
-                        found.append(str(item.relative_to(root_dir)))
+            matches.extend(_collect_pattern_matches(root_dir, validated_path, patterns, recursive))
 
-        # If keywords provided, use keyword search
         if keywords_path_name or keywords_file_content:
-            if use_fast_search:
-                searcher = FastFileSearcher(max_workers=max_workers)
-                try:
-                    results = await searcher.search_files(
-                        validated_path,
-                        keywords_path_name,
-                        keywords_file_content,
-                        regex_keywords,
-                        max_results=10000,
-                    )
-                    # Convert to relative paths
-                    for result in results:
-                        try:
-                            rel_path = Path(result).relative_to(root_dir)
-                            found.append(str(rel_path))
-                        except ValueError:
-                            found.append(result)
-                finally:
-                    searcher.close()
-            else:
-                # Fallback to FileUtils search
-                results = FileUtils.find_files(
-                    validated_path,
-                    keywords_path_name,
-                    keywords_file_content,
-                    regex_keywords,
-                )
-                for result in results:
-                    try:
-                        rel_path = Path(result).relative_to(root_dir)
-                        found.append(str(rel_path))
-                    except ValueError:
-                        found.append(result)
+            keywords = await _collect_keyword_matches(
+                root_dir,
+                validated_path,
+                keywords_path_name,
+                keywords_file_content,
+                regex_keywords,
+                use_fast_search,
+                max_workers,
+            )
+            matches.extend(keywords)
 
-        return {"success": True, "paths": found, "total_found": len(found)}
+        return {"success": True, "paths": matches, "total_found": len(matches)}
     except Exception as e:
         logger.error(f"Failed to find paths: {e}")
         return {"error": str(e)}
@@ -203,78 +169,29 @@ async def read_from_file_tool(
         # Check file size
         FileUtils.check_file_size(safe_path)
 
-        # Determine if binary
         is_binary = not FileUtils.is_text_file(safe_path)
+        add_line_numbers = _resolve_line_number_hint(add_line_numbers, safe_path)
 
-        # Auto-detect line numbers based on file type if not specified
-        if add_line_numbers is None:
-            add_line_numbers = FileUtils.is_source_code_file(safe_path)
-
-        # Handle legacy start_line/end_line parameters
-        if start_line is not None or end_line is not None:
-            offset_type = "line"
-            start_offset_inclusive = (start_line - 1) if start_line else 0
-            end_offset_inclusive = (end_line - 1) if end_line else -1
-
-        # Parse enum values
-        offset_enum = OffsetType[offset_type.upper()]
+        offset_enum, start_offset_inclusive, end_offset_inclusive = _resolve_offsets(
+            offset_type,
+            start_offset_inclusive,
+            end_offset_inclusive,
+            start_line,
+            end_line,
+            is_binary,
+        )
         output_enum = OutputFormat[output_format.replace("-", "_").upper()]
 
-        # Force byte mode for binary files
-        if is_binary:
-            offset_enum = OffsetType.BYTE
+        content = _read_file_segment(
+            safe_path,
+            offset_enum,
+            start_offset_inclusive,
+            end_offset_inclusive,
+            file_encoding,
+            add_line_numbers,
+        )
 
-        # Read content based on offset type
-        if offset_enum == OffsetType.BYTE:
-            with safe_path.open("rb") as f:
-                if start_offset_inclusive > 0:
-                    f.seek(start_offset_inclusive)
-                if end_offset_inclusive == -1:
-                    content = f.read()
-                else:
-                    length = end_offset_inclusive - start_offset_inclusive + 1
-                    content = f.read(length)
-        else:
-            # Text mode reading
-            with safe_path.open(encoding=file_encoding) as f:
-                lines = f.readlines()
-
-            if offset_enum == OffsetType.LINE:
-                end = (
-                    len(lines)
-                    if end_offset_inclusive == -1
-                    else end_offset_inclusive + 1
-                )
-                selected_lines = lines[start_offset_inclusive:end]
-
-                # Add line numbers if requested
-                if add_line_numbers:
-                    formatted_lines = []
-                    for i, line in enumerate(selected_lines):
-                        line_num = start_offset_inclusive + i + 1
-                        line_content = line.rstrip("\n")
-                        formatted_lines.append(f"{line_num}|{line_content}")
-                    content = "\n".join(formatted_lines).encode(file_encoding)
-                else:
-                    content = "".join(selected_lines).encode(file_encoding)
-            else:  # CHAR
-                full_text = "".join(lines)
-                end = (
-                    len(full_text)
-                    if end_offset_inclusive == -1
-                    else end_offset_inclusive + 1
-                )
-                selected_text = full_text[start_offset_inclusive:end]
-                content = selected_text.encode(file_encoding)
-
-        # Encode output
-        if output_enum == OutputFormat.RAW_UTF8:
-            if is_binary:
-                result_content = FileUtils.encode_content(content, OutputFormat.BASE64)
-            else:
-                result_content = content.decode(file_encoding, errors="replace")
-        else:
-            result_content = FileUtils.encode_content(content, output_enum)
+        result_content = _encode_read_content(content, output_enum, is_binary, file_encoding)
 
         return {
             "success": True,
@@ -285,6 +202,230 @@ async def read_from_file_tool(
     except Exception as e:
         logger.error(f"Failed to read file {path}: {e}")
         return {"error": str(e)}
+
+
+def _collect_pattern_matches(
+    root_dir: Path,
+    validated_path: Path,
+    patterns: list[str],
+    recursive: bool,
+) -> list[str]:
+    """Return pattern-based matches within the validated path."""
+    matches: list[str] = []
+    iterator = validated_path.rglob if recursive else validated_path.glob
+    for pattern in patterns:
+        for item in iterator(pattern):
+            matches.append(str(item.relative_to(root_dir)))
+    return matches
+
+
+async def _collect_keyword_matches(
+    root_dir: Path,
+    validated_path: Path,
+    keywords_path_name: list[str] | None,
+    keywords_file_content: list[str] | None,
+    regex_keywords: bool,
+    use_fast_search: bool,
+    max_workers: int,
+) -> list[str]:
+    """Return keyword-based matches using fast search or fallback scan."""
+    if use_fast_search:
+        searcher = FastFileSearcher(max_workers=max_workers)
+        try:
+            results = await searcher.search_files(
+                validated_path,
+                keywords_path_name,
+                keywords_file_content,
+                regex_keywords,
+                max_results=10_000,
+            )
+        finally:
+            searcher.close()
+    else:
+        results = FileUtils.find_files(
+            validated_path,
+            keywords_path_name,
+            keywords_file_content,
+            regex_keywords,
+        )
+
+    return [_normalise_relative_path(root_dir, Path(result)) for result in results]
+
+
+def _normalise_relative_path(root_dir: Path, candidate: Path) -> str:
+    """Convert a candidate path to project-relative form when possible."""
+    try:
+        return str(candidate.relative_to(root_dir))
+    except ValueError:
+        return str(candidate)
+
+
+def _resolve_line_number_hint(add_line_numbers: bool | None, safe_path: Path) -> bool:
+    """Infer whether to display line numbers when parameter is not provided."""
+    return FileUtils.is_source_code_file(safe_path) if add_line_numbers is None else add_line_numbers
+
+
+def _resolve_offsets(
+    offset_type: str,
+    start_offset_inclusive: int,
+    end_offset_inclusive: int,
+    start_line: int | None,
+    end_line: int | None,
+    is_binary: bool,
+) -> tuple[OffsetType, int, int]:
+    """Resolve final offset configuration for file reads."""
+    if start_line is not None or end_line is not None:
+        offset_type = "line"
+        start_offset_inclusive = (start_line - 1) if start_line else 0
+        end_offset_inclusive = (end_line - 1) if end_line else -1
+
+    offset_enum = OffsetType[offset_type.upper()]
+    if is_binary:
+        offset_enum = OffsetType.BYTE
+    return offset_enum, start_offset_inclusive, end_offset_inclusive
+
+
+def _read_file_segment(
+    safe_path: Path,
+    offset_enum: OffsetType,
+    start_offset_inclusive: int,
+    end_offset_inclusive: int,
+    file_encoding: str,
+    add_line_numbers: bool,
+) -> bytes:
+    """Read the requested segment from disk."""
+    if offset_enum == OffsetType.BYTE:
+        return _read_binary_segment(safe_path, start_offset_inclusive, end_offset_inclusive)
+
+    lines = _read_all_lines(safe_path, file_encoding)
+    if offset_enum == OffsetType.LINE:
+        return _read_line_segment(lines, start_offset_inclusive, end_offset_inclusive, add_line_numbers, file_encoding)
+
+    return _read_character_segment(lines, start_offset_inclusive, end_offset_inclusive, file_encoding)
+
+
+def _read_binary_segment(path: Path, start: int, end: int) -> bytes:
+    """Read byte-oriented segment from path."""
+    with path.open("rb") as handle:
+        if start > 0:
+            handle.seek(start)
+        if end == -1:
+            return handle.read()
+        length = end - start + 1
+        return handle.read(length)
+
+
+def _read_all_lines(path: Path, encoding: str) -> list[str]:
+    """Return all lines from a text file."""
+    with path.open(encoding=encoding) as handle:
+        return handle.readlines()
+
+
+def _read_line_segment(
+    lines: list[str],
+    start: int,
+    end: int,
+    add_line_numbers: bool,
+    encoding: str,
+) -> bytes:
+    """Return selected lines encoded as bytes."""
+    end_index = len(lines) if end == -1 else end + 1
+    selected_lines = lines[start:end_index]
+    if add_line_numbers:
+        formatted = [f"{start + index + 1}|{line.rstrip(LINE_BREAK)}" for index, line in enumerate(selected_lines)]
+        return LINE_BREAK.join(formatted).encode(encoding)
+    return "".join(selected_lines).encode(encoding)
+
+
+def _read_character_segment(
+    lines: list[str],
+    start: int,
+    end: int,
+    encoding: str,
+) -> bytes:
+    """Return selected characters encoded as bytes."""
+    full_text = "".join(lines)
+    end_index = len(full_text) if end == -1 else end + 1
+    return full_text[start:end_index].encode(encoding)
+
+
+def _encode_read_content(
+    content: bytes,
+    output_enum: OutputFormat,
+    is_binary: bool,
+    file_encoding: str,
+) -> str | bytes:
+    """Encode the raw content according to output settings."""
+    if output_enum == OutputFormat.RAW_UTF8:
+        return FileUtils.encode_content(content, OutputFormat.BASE64) if is_binary else content.decode(file_encoding, errors="replace")
+    return FileUtils.encode_content(content, output_enum)
+
+
+def _decode_write_content(
+    content: str,
+    mode: str,
+    input_enum: InputFormat,
+    file_encoding: str,
+) -> str | bytes:
+    """Decode user-provided content into the format to be written."""
+    if mode == "binary":
+        return content.encode("utf-8") if input_enum == InputFormat.RAW_UTF8 else FileUtils.decode_content(content, input_enum)
+
+    if input_enum == InputFormat.RAW_UTF8:
+        return content
+
+    decoded_bytes = FileUtils.decode_content(content, input_enum)
+    return decoded_bytes.decode(file_encoding)
+
+
+async def _run_precommit_validation(
+    safe_path: Path,
+    write_content: str | bytes,
+    file_encoding: str,
+    validate_with_precommit: bool,
+) -> tuple[str | bytes, dict[str, Any] | None]:
+    """Run pre-commit validation when enabled."""
+    if not validate_with_precommit:
+        return write_content, None
+
+    validator = PreCommitValidator()
+    validation_result = await validator.validate_content(safe_path, write_content, encoding=file_encoding)
+
+    if not validation_result["valid"]:
+        error_details = "\n".join(validation_result["errors"]) if validation_result["errors"] else "Pre-commit hooks failed"
+        return write_content, {
+            "error": f"Pre-commit validation failed:\n{error_details}",
+            "validation_errors": validation_result["errors"],
+        }
+
+    modified_content = validation_result["modified_content"]
+    if modified_content != write_content and validation_result["errors"]:
+        logger.info(f"Pre-commit hooks modified {safe_path}")
+
+    return modified_content, None
+
+
+def _write_validated_content(
+    safe_path: Path,
+    write_content: str | bytes,
+    mode: str,
+    file_encoding: str,
+) -> None:
+    """Persist content to disk using the correct mode."""
+    if mode == "binary":
+        data = write_content if isinstance(write_content, bytes) else write_content.encode(file_encoding)
+        safe_path.write_bytes(data)
+        return
+
+    text = write_content if isinstance(write_content, str) else write_content.decode(file_encoding)
+    safe_path.write_text(text, encoding=file_encoding)
+
+
+def _calculate_bytes_written(write_content: str | bytes, file_encoding: str) -> int:
+    """Determine the number of bytes written to disk."""
+    if isinstance(write_content, bytes):
+        return len(write_content)
+    return len(write_content.encode(file_encoding))
 
 
 async def write_to_file_tool(
@@ -302,75 +443,25 @@ async def write_to_file_tool(
     try:
         safe_path = validate_path(root_dir, path, allow_write=False)
 
-        # Create parent directories if needed
         safe_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Parse input format
         input_enum = InputFormat[input_format.replace("-", "_").upper()]
+        write_content = _decode_write_content(content, mode, input_enum, file_encoding)
 
-        # Decode content if needed
-        write_content: str | bytes
-        if mode == "binary":
-            if input_enum == InputFormat.RAW_UTF8:
-                write_content = content.encode("utf-8")
-            else:
-                write_content = FileUtils.decode_content(content, input_enum)
-        else:
-            if input_enum != InputFormat.RAW_UTF8:
-                decoded = FileUtils.decode_content(content, input_enum)
-                write_content = decoded.decode(file_encoding)
-            else:
-                write_content = content
+        write_content, error_response = await _run_precommit_validation(
+            safe_path,
+            write_content,
+            file_encoding,
+            validate_with_precommit,
+        )
+        if error_response:
+            return error_response
 
-        # Validate with pre-commit if enabled
-        if validate_with_precommit:
-            validator = PreCommitValidator()
-            validation_result = await validator.validate_content(
-                safe_path,
-                write_content,
-                encoding=file_encoding,
-            )
-
-            if not validation_result["valid"]:
-                error_details = (
-                    "\n".join(validation_result["errors"])
-                    if validation_result["errors"]
-                    else "Pre-commit hooks failed"
-                )
-                return {
-                    "error": f"Pre-commit validation failed:\n{error_details}",
-                    "validation_errors": validation_result["errors"],
-                }
-
-            # Use the potentially modified content from pre-commit
-            write_content = validation_result["modified_content"]
-
-            # Log if content was modified by hooks
-            if write_content != content and validation_result["errors"]:
-                logger.info(f"Pre-commit hooks modified {path}")
-
-        # Write the validated content
-        if mode == "binary":
-            if isinstance(write_content, bytes):
-                safe_path.write_bytes(write_content)
-            else:
-                safe_path.write_bytes(write_content.encode(file_encoding))
-        else:
-            if isinstance(write_content, str):
-                safe_path.write_text(write_content, encoding=file_encoding)
-            else:
-                safe_path.write_text(
-                    write_content.decode(file_encoding), encoding=file_encoding
-                )
+        _write_validated_content(safe_path, write_content, mode, file_encoding)
 
         return {
             "success": True,
             "path": str(safe_path.relative_to(root_dir)),
-            "bytes_written": len(
-                write_content
-                if isinstance(write_content, bytes)
-                else write_content.encode(file_encoding)
-            ),
+            "bytes_written": _calculate_bytes_written(write_content, file_encoding),
         }
     except Exception as e:
         logger.error(f"Failed to write file {path}: {e}")
@@ -387,7 +478,7 @@ async def delete_paths_tool(root_dir: Path, paths: list[str]) -> dict[str, Any]:
 
         for path_str in paths:
             try:
-                safe_path = validate_path(root_dir, path_str)
+                safe_path = validate_path(root_dir, path_str, allow_write=False)
 
                 if not safe_path.exists():
                     errors.append(f"{path_str}: File or directory does not exist")
@@ -423,10 +514,7 @@ async def modify_file_tool(
     offset_type: str = "line",
 ) -> dict[str, Any]:
     """Modify file by replacing content at specific offsets."""
-    logger.debug(
-        f"Modifying file: path={path}, start={start_offset_inclusive}, "
-        f"end={end_offset_inclusive}, offset_type={offset_type}"
-    )
+    logger.debug(f"Modifying file: path={path}, start={start_offset_inclusive}, " f"end={end_offset_inclusive}, offset_type={offset_type}")
 
     try:
         safe_path = validate_path(root_dir, path, allow_write=False)
@@ -456,11 +544,7 @@ async def modify_file_tool(
             if start_offset_inclusive < 0 or end_offset_inclusive >= len(content):
                 return {"error": "Byte offsets out of range"}
 
-            new_full_content = (
-                content[:start_offset_inclusive]
-                + new_content
-                + content[end_offset_inclusive + 1 :]
-            )
+            new_full_content = content[:start_offset_inclusive] + new_content + content[end_offset_inclusive + 1 :]
         else:
             return {"error": f"Invalid offset_type: {offset_type}"}
 
@@ -484,9 +568,7 @@ async def replace_in_file_tool(
     is_regex: bool = False,
 ) -> dict[str, Any]:
     """Replace text in file."""
-    logger.debug(
-        f"Replacing in file: path={path}, old_content={old_content}, is_regex={is_regex}"
-    )
+    logger.debug(f"Replacing in file: path={path}, old_content={old_content}, is_regex={is_regex}")
 
     try:
         safe_path = validate_path(root_dir, path, allow_write=False)

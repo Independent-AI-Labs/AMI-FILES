@@ -36,9 +36,7 @@ class TestFilesysMCPServer:
     def test_server_initialization_invalid_root(self) -> None:
         """Test server initialization with invalid root directory."""
         with pytest.raises(ValueError, match="Root directory does not exist"):
-            FilesysMCPServer(
-                root_dir="/definitely/nonexistent/path/that/should/not/exist/anywhere"
-            )
+            FilesysMCPServer(root_dir="/definitely/nonexistent/path/that/should/not/exist/anywhere")
 
     def test_server_initialization_file_as_root(self, temp_dir: Path) -> None:
         """Test server initialization with file as root directory."""
@@ -92,7 +90,7 @@ class TestFilesysMCPServer:
 
             # Initialize server with relative path
 
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
             try:
                 os.chdir(tmpdir)
                 server = FilesysMCPServer(root_dir="subdir")

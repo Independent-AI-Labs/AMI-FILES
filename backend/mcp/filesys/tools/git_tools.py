@@ -29,7 +29,7 @@ async def git_status_tool(
         if not untracked:
             cmd.append("--untracked-files=no")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -44,22 +44,22 @@ async def git_stage_tool(
     root_dir: Path,
     repo_path: str | None = None,
     files: list[str] | None = None,
-    all: bool = False,
+    stage_all: bool = False,
 ) -> dict[str, Any]:
     """Stage files for commit."""
-    logger.debug(f"Staging files: repo_path={repo_path}, files={files}, all={all}")
+    logger.debug(f"Staging files: repo_path={repo_path}, files={files}, stage_all={stage_all}")
 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        if all:
+        if stage_all:
             cmd = ["git", "add", "-A"]
         elif files:
             cmd = ["git", "add", *files]
         else:
-            return {"error": "Must specify files or use all=True"}
+            return {"error": "Must specify files or use stage_all=True"}
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -74,22 +74,22 @@ async def git_unstage_tool(
     root_dir: Path,
     repo_path: str | None = None,
     files: list[str] | None = None,
-    all: bool = False,
+    unstage_all: bool = False,
 ) -> dict[str, Any]:
     """Unstage files."""
-    logger.debug(f"Unstaging files: repo_path={repo_path}, files={files}, all={all}")
+    logger.debug(f"Unstaging files: repo_path={repo_path}, files={files}, unstage_all={unstage_all}")
 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        if all:
+        if unstage_all:
             cmd = ["git", "reset", "HEAD"]
         elif files:
             cmd = ["git", "reset", "HEAD", *files]
         else:
-            return {"error": "Must specify files or use all=True"}
+            return {"error": "Must specify files or use unstage_all=True"}
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -105,7 +105,7 @@ async def git_commit_tool(
     message: str,
     repo_path: str | None = None,
     amend: bool = False,
-    all: bool = False,
+    include_tracked: bool = False,
 ) -> dict[str, Any]:
     """Commit changes."""
     logger.debug(f"Committing: message={message}, repo_path={repo_path}, amend={amend}")
@@ -116,10 +116,10 @@ async def git_commit_tool(
         cmd = ["git", "commit", "-m", message]
         if amend:
             cmd.append("--amend")
-        if all:
+        if include_tracked:
             cmd.append("-a")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -148,7 +148,7 @@ async def git_diff_tool(
         if files:
             cmd.extend(files)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -178,7 +178,7 @@ async def git_history_tool(
         if oneline:
             cmd.append("--oneline")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -209,7 +209,7 @@ async def git_restore_tool(
             cmd.append("--staged")
         cmd.extend(files)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -224,7 +224,7 @@ async def git_fetch_tool(
     root_dir: Path,
     repo_path: str | None = None,
     remote: str = "origin",
-    all: bool = False,
+    fetch_all: bool = False,
 ) -> dict[str, Any]:
     """Fetch from remote."""
     logger.debug(f"Fetching: repo_path={repo_path}, remote={remote}")
@@ -233,12 +233,12 @@ async def git_fetch_tool(
         work_dir = validate_path(root_dir, repo_path or ".")
 
         cmd = ["git", "fetch"]
-        if all:
+        if fetch_all:
             cmd.append("--all")
         else:
             cmd.append(remote)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -269,7 +269,7 @@ async def git_pull_tool(
         if branch:
             cmd.append(branch)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -303,7 +303,7 @@ async def git_push_tool(
         if branch:
             cmd.append(branch)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -314,9 +314,7 @@ async def git_push_tool(
         return {"error": str(e)}
 
 
-async def git_merge_abort_tool(
-    root_dir: Path, repo_path: str | None = None
-) -> dict[str, Any]:
+async def git_merge_abort_tool(root_dir: Path, repo_path: str | None = None) -> dict[str, Any]:
     """Abort merge."""
     logger.debug(f"Aborting merge: repo_path={repo_path}")
 
@@ -325,7 +323,7 @@ async def git_merge_abort_tool(
 
         cmd = ["git", "merge", "--abort"]
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return {"error": result.stderr}

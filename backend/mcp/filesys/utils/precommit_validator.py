@@ -33,6 +33,7 @@ class PreCommitValidator:
                 capture_output=True,
                 text=True,
                 timeout=files_config.get_precommit_timeout("version_check"),
+                check=False,
             )
             if result.returncode != 0:
                 return False
@@ -92,6 +93,189 @@ class PreCommitValidator:
         """
         return self._find_git_root()
 
+    def _prepare_validation(
+        self,
+        file_path: Path,
+        content: str | bytes,
+        encoding: str,
+    ) -> tuple[dict[str, Any] | None, Path | None, bytes]:
+        """Perform early validation checks that may short-circuit the workflow."""
+
+        default_result = {"valid": True, "errors": [], "modified_content": content}
+        content_bytes = content if isinstance(content, bytes) else content.encode(encoding)
+        result: dict[str, Any] | None = None
+        git_root: Path | None = None
+
+        if not self.enabled:
+            logger.debug("Pre-commit validation disabled; returning original content")
+            result = default_result
+        elif not self.should_validate_file(file_path):
+            logger.debug(f"Skipping pre-commit validation for non-source file: {file_path}")
+            result = default_result
+        elif len(content_bytes) > self.max_file_size_kb * 1024:
+            result = {
+                "valid": True,
+                "errors": ["File too large for pre-commit validation"],
+                "modified_content": content,
+            }
+        elif not self._check_precommit_available():
+            if self.skip_on_missing:
+                logger.debug("Pre-commit not available, skipping validation")
+                result = default_result
+            else:
+                result = {
+                    "valid": False,
+                    "errors": ["Pre-commit is not installed or configured"],
+                    "modified_content": content,
+                }
+        else:
+            git_root = self._find_git_root()
+            if not git_root:
+                result = {
+                    "valid": True,
+                    "errors": ["Not in a git repository"],
+                    "modified_content": content,
+                }
+
+        return result, git_root, content_bytes
+
+    def _write_temp_file(
+        self,
+        git_root: Path,
+        file_path: Path,
+        content: str | bytes,
+    ) -> Path:
+        """Write content to a temporary file accessible to pre-commit."""
+
+        suffix = file_path.suffix if file_path else ".tmp"
+        tmp_dir = git_root / ".precommit_tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        with tempfile.NamedTemporaryFile(
+            mode="wb" if isinstance(content, bytes) else "w",
+            suffix=suffix,
+            delete=False,
+            dir=tmp_dir,
+        ) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            if isinstance(content, bytes):
+                tmp_file.write(content)
+            else:
+                tmp_file.write(content)
+        return tmp_path
+
+    @staticmethod
+    def _collect_process_output(result: subprocess.CompletedProcess[str]) -> list[str]:
+        """Extract stdout/stderr messages for diagnostics."""
+
+        messages: list[str] = []
+        if result.stdout:
+            messages.append(result.stdout)
+        if result.stderr:
+            messages.append(result.stderr)
+        return messages
+
+    def _attempt_autofix(
+        self,
+        tmp_path: Path,
+        rel_path: Path,
+        git_root: Path,
+        content: str | bytes,
+        modified_content: str | bytes,
+        encoding: str,
+    ) -> tuple[bool, str | bytes, list[str]]:
+        """Retry pre-commit after applying automatic fixes."""
+
+        if modified_content == content or not tmp_path.exists():
+            return False, modified_content, []
+
+        if isinstance(modified_content, bytes):
+            tmp_path.write_bytes(modified_content)
+        else:
+            tmp_path.write_text(modified_content, encoding=encoding)
+
+        try:
+            recheck = subprocess.run(
+                ["pre-commit", "run", "--files", str(rel_path)],
+                cwd=git_root,
+                capture_output=True,
+                text=True,
+                timeout=files_config.get_precommit_timeout("recheck_run"),
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return False, modified_content, ["Pre-commit autofix timed out"]
+        except subprocess.SubprocessError as error:
+            return False, modified_content, [f"Pre-commit autofix failed: {error}"]
+
+        if recheck.returncode == 0:
+            return True, modified_content, ["Pre-commit hooks applied automatic fixes"]
+
+        return False, modified_content, self._collect_process_output(recheck)
+
+    def _execute_precommit(
+        self,
+        tmp_path: Path,
+        git_root: Path,
+        content: str | bytes,
+        encoding: str,
+    ) -> tuple[list[str], str | bytes, bool]:
+        """Execute pre-commit and process its outcome."""
+
+        errors: list[str] = []
+        modified_content: str | bytes = content
+        valid_override = False
+        rel_path = tmp_path.relative_to(git_root)
+
+        try:
+            result = subprocess.run(
+                ["pre-commit", "run", "--files", str(rel_path)],
+                cwd=git_root,
+                capture_output=True,
+                text=True,
+                timeout=files_config.get_precommit_timeout("validation_run"),
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return ["Pre-commit validation timed out"], modified_content, valid_override
+        except subprocess.SubprocessError as error:
+            return [f"Pre-commit execution failed: {error}"], modified_content, valid_override
+
+        if tmp_path.exists():
+            modified_content = tmp_path.read_bytes() if isinstance(content, bytes) else tmp_path.read_text(encoding=encoding)
+
+        if result.returncode == 0:
+            return errors, modified_content, valid_override
+
+        errors.extend(self._collect_process_output(result))
+        valid_override, modified_content, autofix_messages = self._attempt_autofix(
+            tmp_path,
+            rel_path,
+            git_root,
+            content,
+            modified_content,
+            encoding,
+        )
+        errors.extend(autofix_messages)
+        return errors, modified_content, valid_override
+
+    def _run_precommit(
+        self,
+        git_root: Path,
+        file_path: Path,
+        content: str | bytes,
+        encoding: str,
+    ) -> tuple[list[str], str | bytes, bool]:
+        """Run pre-commit against temporary content and capture results."""
+
+        tmp_path = self._write_temp_file(git_root, file_path, content)
+        try:
+            return self._execute_precommit(tmp_path, git_root, content, encoding)
+        finally:
+            if tmp_path.exists():
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink()
+
     async def validate_content(
         self,
         file_path: Path,
@@ -111,136 +295,18 @@ class PreCommitValidator:
                 - errors: List of error messages
                 - modified_content: Content after hook fixes (if any)
         """
-        if not self.enabled:
-            return {"valid": True, "errors": [], "modified_content": content}
+        early_result, git_root, _ = self._prepare_validation(file_path, content, encoding)
+        if early_result is not None:
+            return early_result
+        assert git_root is not None
 
-        # Check if we should validate this file type
-        if not self.should_validate_file(file_path):
-            logger.debug(
-                f"Skipping pre-commit validation for non-source file: {file_path}"
-            )
-            return {"valid": True, "errors": [], "modified_content": content}
-
-        # Check file size
-        content_bytes = (
-            content if isinstance(content, bytes) else content.encode(encoding)
+        errors, modified_content, valid_override = self._run_precommit(
+            git_root,
+            file_path,
+            content,
+            encoding,
         )
-        if len(content_bytes) > self.max_file_size_kb * 1024:
-            return {
-                "valid": True,
-                "errors": ["File too large for pre-commit validation"],
-                "modified_content": content,
-            }
-
-        # Check if pre-commit is available
-        if not self._check_precommit_available():
-            if self.skip_on_missing:
-                logger.debug("Pre-commit not available, skipping validation")
-                return {"valid": True, "errors": [], "modified_content": content}
-            return {
-                "valid": False,
-                "errors": ["Pre-commit is not installed or configured"],
-                "modified_content": content,
-            }
-
-        # Find git root
-        git_root = self._find_git_root()
-        if not git_root:
-            return {
-                "valid": True,
-                "errors": ["Not in a git repository"],
-                "modified_content": content,
-            }
-
-        # Create temporary file with the content
-        suffix = file_path.suffix if file_path else ".tmp"
-        errors = []
-        modified_content = content
-        tmp_path = None
-
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="wb" if isinstance(content, bytes) else "w",
-                suffix=suffix,
-                delete=False,
-                dir=git_root,  # Create in git root so pre-commit can find it
-            ) as tmp_file:
-                tmp_path = Path(tmp_file.name)
-
-                # Write content
-                if isinstance(content, bytes):
-                    tmp_file.write(content)
-                else:
-                    tmp_file.write(content)
-
-            # Run pre-commit on the temporary file
-            try:
-                # Get relative path from git root for pre-commit
-                rel_path = tmp_path.relative_to(git_root)
-
-                result = subprocess.run(
-                    ["pre-commit", "run", "--files", str(rel_path)],
-                    cwd=git_root,
-                    capture_output=True,
-                    text=True,
-                    timeout=files_config.get_precommit_timeout("validation_run"),
-                )
-
-                # Check if hooks modified the file
-                if tmp_path.exists():
-                    if isinstance(content, bytes):
-                        modified_content = tmp_path.read_bytes()
-                    else:
-                        modified_content = tmp_path.read_text(encoding=encoding)
-
-                # pre-commit returns 0 if all hooks passed, 1 if any failed
-                if result.returncode != 0:
-                    # Parse errors from output
-                    if result.stdout:
-                        errors.append(result.stdout)
-                    if result.stderr:
-                        errors.append(result.stderr)
-
-                    # Check if the file was modified (hooks may have fixed issues)
-                    content_changed = modified_content != content
-
-                    # If hooks fixed the issues, consider it valid with the fixed content
-                    if content_changed:
-                        # Re-run to check if fixes resolved all issues
-                        if tmp_path.exists():
-                            if isinstance(modified_content, bytes):
-                                tmp_path.write_bytes(modified_content)
-                            else:
-                                tmp_path.write_text(modified_content, encoding=encoding)
-
-                        recheck = subprocess.run(
-                            ["pre-commit", "run", "--files", str(rel_path)],
-                            cwd=git_root,
-                            capture_output=True,
-                            text=True,
-                            timeout=files_config.get_precommit_timeout("recheck_run"),
-                        )
-
-                        if recheck.returncode == 0:
-                            # Hooks fixed all issues
-                            return {
-                                "valid": True,
-                                "errors": ["Pre-commit hooks applied automatic fixes"],
-                                "modified_content": modified_content,
-                            }
-
-            except subprocess.TimeoutExpired:
-                errors.append("Pre-commit validation timed out")
-            except subprocess.SubprocessError as e:
-                errors.append(f"Pre-commit execution failed: {e}")
-
-        finally:
-            # Clean up temporary file
-            if tmp_path and tmp_path.exists():
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink()
-
-        valid = len(errors) == 0
+        valid = valid_override or not errors
         return {
             "valid": valid,
             "errors": errors,

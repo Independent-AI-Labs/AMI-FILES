@@ -34,9 +34,7 @@ class TestPythonExecution:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
@@ -45,9 +43,7 @@ class TestPythonExecution:
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
 
-    async def _get_client_session(
-        self, venv_python: Path, server_script: Path, temp_dir: str
-    ) -> Any:
+    async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),
@@ -57,14 +53,10 @@ class TestPythonExecution:
         return stdio_client(server_params)
 
     @pytest.mark.asyncio
-    async def test_python_run_simple_code(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_simple_code(self, venv_python: Path, server_script: Path) -> None:
         """Test executing simple Python code."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -87,14 +79,10 @@ class TestPythonExecution:
                     assert response["returncode"] == 0
 
     @pytest.mark.asyncio
-    async def test_python_run_with_error(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_error(self, venv_python: Path, server_script: Path) -> None:
         """Test executing Python code with error."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -112,14 +100,10 @@ class TestPythonExecution:
                     assert "ValueError: Test error" in response["stderr"]
 
     @pytest.mark.asyncio
-    async def test_python_run_with_timeout(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_timeout(self, venv_python: Path, server_script: Path) -> None:
         """Test Python execution timeout."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -133,14 +117,10 @@ class TestPythonExecution:
 
                     response = json.loads(get_text_content(result))
                     assert "error" in response
-                    assert "timeout" in response.get(
-                        "error", ""
-                    ).lower() or response.get("timeout", False)
+                    assert "timeout" in response.get("error", "").lower() or response.get("timeout", False)
 
     @pytest.mark.asyncio
-    async def test_python_run_script_file(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_script_file(self, venv_python: Path, server_script: Path) -> None:
         """Test running a Python script file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -155,9 +135,7 @@ sys.exit(0)
             script_file.write_text(script_content)
 
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as client,
             ):
                 await client.initialize()
@@ -174,14 +152,10 @@ sys.exit(0)
                 assert response["returncode"] == 0
 
     @pytest.mark.asyncio
-    async def test_python_run_with_args(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_args(self, venv_python: Path, server_script: Path) -> None:
         """Test running Python with arguments."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -202,9 +176,7 @@ print("Arguments:", sys.argv[1:])
                     assert "['arg1', 'arg2', 'arg3']" in response["stdout"]
 
     @pytest.mark.asyncio
-    async def test_python_run_with_cwd(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_cwd(self, venv_python: Path, server_script: Path) -> None:
         """Test running Python with custom working directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -218,9 +190,7 @@ print("Arguments:", sys.argv[1:])
             test_file.write_text("test content")
 
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as client,
             ):
                 await client.initialize()
@@ -240,14 +210,10 @@ print("Files:", os.listdir('.'))
                 assert "test.txt" in response["stdout"]
 
     @pytest.mark.asyncio
-    async def test_python_run_with_system_python(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_system_python(self, venv_python: Path, server_script: Path) -> None:
         """Test running with system Python."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -262,14 +228,10 @@ print("Files:", os.listdir('.'))
                     assert "python" in response["stdout"].lower()
 
     @pytest.mark.asyncio
-    async def test_python_run_with_venv(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_venv(self, venv_python: Path, server_script: Path) -> None:
         """Test running with venv Python."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -286,14 +248,10 @@ print("Files:", os.listdir('.'))
                     assert "python" in response["stdout"].lower()
 
     @pytest.mark.asyncio
-    async def test_python_run_multiline_output(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_multiline_output(self, venv_python: Path, server_script: Path) -> None:
         """Test handling multiline output."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -302,9 +260,7 @@ for i in range(5):
     print(f"Line {i+1}")
 print("Done")
 """
-                    result = await client.call_tool(
-                        "python_run", arguments={"script": script, "timeout": 5}
-                    )
+                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -313,14 +269,10 @@ print("Done")
                     assert "Done" in response["stdout"]
 
     @pytest.mark.asyncio
-    async def test_python_run_with_imports(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_python_run_with_imports(self, venv_python: Path, server_script: Path) -> None:
         """Test running code with standard library imports."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -329,9 +281,7 @@ print("Done")
 data = {'timestamp': datetime.datetime.now().isoformat(), 'pid': os.getpid()}
 print(json.dumps(data))
 """
-                    result = await client.call_tool(
-                        "python_run", arguments={"script": script, "timeout": 5}
-                    )
+                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -345,9 +295,7 @@ class TestPythonErrorHandling:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
@@ -356,9 +304,7 @@ class TestPythonErrorHandling:
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
 
-    async def _get_client_session(
-        self, venv_python: Path, server_script: Path, temp_dir: str
-    ) -> Any:
+    async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),
@@ -371,9 +317,7 @@ class TestPythonErrorHandling:
     async def test_syntax_error(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of syntax errors."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -390,9 +334,7 @@ class TestPythonErrorHandling:
     async def test_import_error(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of import errors."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -403,18 +345,13 @@ class TestPythonErrorHandling:
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is False
-                    assert (
-                        "ModuleNotFoundError" in response["stderr"]
-                        or "ImportError" in response["stderr"]
-                    )
+                    assert "ModuleNotFoundError" in response["stderr"] or "ImportError" in response["stderr"]
 
     @pytest.mark.asyncio
     async def test_runtime_error(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of runtime errors."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -425,9 +362,7 @@ def divide(a, b):
 result = divide(10, 0)
 print(result)
 """
-                    result = await client.call_tool(
-                        "python_run", arguments={"script": script, "timeout": 5}
-                    )
+                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is False
@@ -437,9 +372,7 @@ print(result)
     async def test_invalid_cwd(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of invalid working directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -456,14 +389,10 @@ print(result)
                     assert "error" in response
 
     @pytest.mark.asyncio
-    async def test_nonexistent_script_file(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_nonexistent_script_file(self, venv_python: Path, server_script: Path) -> None:
         """Test running nonexistent script file."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -476,10 +405,7 @@ print(result)
                     # Should either fail to find the file or execute it as code
                     if response.get("success"):
                         # Treated as code, should fail
-                        assert (
-                            "SyntaxError" in response["stderr"]
-                            or "NameError" in response["stderr"]
-                        )
+                        assert "SyntaxError" in response["stderr"] or "NameError" in response["stderr"]
                     else:
                         # File not found or other error
                         assert response["returncode"] != 0
@@ -491,9 +417,7 @@ class TestPythonComplexScenarios:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
@@ -502,9 +426,7 @@ class TestPythonComplexScenarios:
         result = EnvironmentSetup.get_module_venv_python(Path(__file__))
         return Path(result)
 
-    async def _get_client_session(
-        self, venv_python: Path, server_script: Path, temp_dir: str
-    ) -> Any:
+    async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""
         server_params = StdioServerParameters(
             command=str(venv_python),
@@ -514,17 +436,13 @@ class TestPythonComplexScenarios:
         return stdio_client(server_params)
 
     @pytest.mark.asyncio
-    async def test_file_io_operations(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_file_io_operations(self, venv_python: Path, server_script: Path) -> None:
         """Test Python script doing file I/O."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
             async with (
-                await self._get_client_session(
-                    venv_python, server_script, temp_dir
-                ) as (read_stream, write_stream),
+                await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream),
                 ClientSession(read_stream, write_stream) as client,
             ):
                 await client.initialize()
@@ -537,9 +455,7 @@ with open('output.txt', 'r') as f:
     content = f.read()
     print(f"File content: {content}")
 """
-                result = await client.call_tool(
-                    "python_run", arguments={"script": script, "timeout": 5}
-                )
+                result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
 
                 response = json.loads(get_text_content(result))
                 assert response["success"] is True
@@ -550,25 +466,16 @@ with open('output.txt', 'r') as f:
                 assert (temp_path / "output.txt").read_text() == "Test output"
 
     @pytest.mark.asyncio
-    async def test_concurrent_executions(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_concurrent_executions(self, venv_python: Path, server_script: Path) -> None:
         """Test multiple concurrent Python executions."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
                     scripts = [f"print('Result {i}')" for i in range(5)]
 
-                    tasks = [
-                        client.call_tool(
-                            "python_run", arguments={"script": script, "timeout": 5}
-                        )
-                        for script in scripts
-                    ]
+                    tasks = [client.call_tool("python_run", arguments={"script": script, "timeout": 5}) for script in scripts]
 
                     results = await asyncio.gather(*tasks)
 
@@ -581,9 +488,7 @@ with open('output.txt', 'r') as f:
     async def test_large_output(self, venv_python: Path, server_script: Path) -> None:
         """Test handling of large output."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -591,9 +496,7 @@ with open('output.txt', 'r') as f:
 for i in range(1000):
     print(f"Line {i}: " + "x" * 100)
 """
-                    result = await client.call_tool(
-                        "python_run", arguments={"script": script, "timeout": 10}
-                    )
+                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 10})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -601,14 +504,10 @@ for i in range(1000):
                     assert "Line 999:" in response["stdout"]
 
     @pytest.mark.asyncio
-    async def test_mixed_stdout_stderr(
-        self, venv_python: Path, server_script: Path
-    ) -> None:
+    async def test_mixed_stdout_stderr(self, venv_python: Path, server_script: Path) -> None:
         """Test handling mixed stdout and stderr."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
@@ -618,9 +517,7 @@ sys.stderr.write("Error output 1\\n")
 print("Normal output 2")
 sys.stderr.write("Error output 2\\n")
 """
-                    result = await client.call_tool(
-                        "python_run", arguments={"script": script, "timeout": 5}
-                    )
+                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -633,9 +530,7 @@ sys.stderr.write("Error output 2\\n")
     async def test_exit_codes(self, venv_python: Path, server_script: Path) -> None:
         """Test different exit codes."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            async with await self._get_client_session(
-                venv_python, server_script, temp_dir
-            ) as (read_stream, write_stream):
+            async with await self._get_client_session(venv_python, server_script, temp_dir) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 

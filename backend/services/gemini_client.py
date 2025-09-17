@@ -25,6 +25,8 @@ class GeminiClient:
     # Rate limiting (requests per minute)
     RATE_LIMIT: ClassVar[int] = 60
     RATE_WINDOW: ClassVar[int] = 60  # seconds
+    HTTP_OK: ClassVar[int] = 200
+    HTTP_TOO_MANY_REQUESTS: ClassVar[int] = 429
 
     def __init__(self, api_key: str, model: str | None = None):
         """Initialize Gemini client."""
@@ -69,9 +71,7 @@ class GeminiClient:
             now = time.time()
 
             # Remove old requests outside the window
-            self._request_times = [
-                t for t in self._request_times if now - t < self.RATE_WINDOW
-            ]
+            self._request_times = [t for t in self._request_times if now - t < self.RATE_WINDOW]
 
             # Check if we need to wait
             if len(self._request_times) >= self.RATE_LIMIT:
@@ -82,16 +82,12 @@ class GeminiClient:
                     await asyncio.sleep(wait_time)
                     # Clean up again after waiting
                     now = time.time()
-                    self._request_times = [
-                        t for t in self._request_times if now - t < self.RATE_WINDOW
-                    ]
+                    self._request_times = [t for t in self._request_times if now - t < self.RATE_WINDOW]
 
             # Record this request
             self._request_times.append(now)
 
-    async def _make_request(
-        self, endpoint: str, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _make_request(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Make API request with error handling."""
         if not self.session:
             await self.connect()
@@ -105,18 +101,14 @@ class GeminiClient:
         assert self.session is not None
 
         try:
-            async with self.session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status == 200:
+            async with self.session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                if response.status == self.HTTP_OK:
                     result: dict[str, Any] = await response.json()
                     return result
-                if response.status == 429:
+                if response.status == self.HTTP_TOO_MANY_REQUESTS:
                     # Rate limit exceeded, wait and retry
                     retry_after = int(response.headers.get("Retry-After", 60))
-                    logger.warning(
-                        f"Rate limit exceeded, retrying after {retry_after}s"
-                    )
+                    logger.warning(f"Rate limit exceeded, retrying after {retry_after}s")
                     await asyncio.sleep(retry_after)
                     return await self._make_request(endpoint, payload)
                 error_text = await response.text()
@@ -139,8 +131,8 @@ class GeminiClient:
         image_path = Path(image_path) if isinstance(image_path, str) else image_path
 
         # Read and encode image
-        with open(image_path, "rb") as f:
-            image_data = base64.b64encode(f.read()).decode("utf-8")
+        with image_path.open("rb") as file_handle:
+            image_data = base64.b64encode(file_handle.read()).decode("utf-8")
 
         # Detect MIME type if not provided
         if not mime_type:
@@ -184,14 +176,12 @@ class GeminiClient:
         response = await self._make_request("generateContent", payload)
 
         # Extract text from response
-        result = {
+        return {
             "prompt": prompt,
             "response": self._extract_text_from_response(response),
             "image_path": str(image_path),
             "mime_type": mime_type,
         }
-
-        return result
 
     async def extract_chart_data(self, image_path: Path | str) -> dict[str, Any]:
         """Extract structured data from charts and graphs."""
@@ -257,9 +247,7 @@ Preserve the document structure and formatting in your response."""
         result["extraction_type"] = "document_page"
         return result
 
-    async def batch_analyze(
-        self, image_paths: list[Path | str], prompt: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def batch_analyze(self, image_paths: list[Path | str], prompt: str | None = None) -> list[dict[str, Any]]:
         """Analyze multiple images with rate limiting."""
         results = []
 
@@ -298,9 +286,7 @@ Preserve the document structure and formatting in your response."""
         """Get current rate limit status."""
         async with self._rate_lock:
             now = time.time()
-            self._request_times = [
-                t for t in self._request_times if now - t < self.RATE_WINDOW
-            ]
+            self._request_times = [t for t in self._request_times if now - t < self.RATE_WINDOW]
 
             return {
                 "requests_made": len(self._request_times),

@@ -2,15 +2,33 @@
 """Runner script for Filesys FastMCP server."""
 
 import argparse
+import importlib
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
-from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
+MODULE_ROOT = Path(__file__).resolve().parent.parent
 
-# Add files and base to path
-MODULE_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(MODULE_ROOT))
-sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
+if TYPE_CHECKING:
+    # Only imported for typing to avoid circular runtime dependencies.
+    from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
+
+
+def configure_sys_path() -> None:
+    """Ensure repository roots are on sys.path for dynamic imports."""
+
+    for candidate in (MODULE_ROOT, MODULE_ROOT.parent):
+        candidate_str = str(candidate)
+        if candidate_str not in sys.path:
+            sys.path.insert(0, candidate_str)
+
+
+def load_server_class() -> type["FilesysFastMCPServer"]:
+    """Import the Filesys FastMCP server after sys.path is ready."""
+
+    configure_sys_path()
+    module = importlib.import_module("files.backend.mcp.filesys.filesys_server")
+    return cast("type[FilesysFastMCPServer]", module.FilesysFastMCPServer)
 
 
 def main() -> None:
@@ -41,8 +59,9 @@ def main() -> None:
     args = parser.parse_args()
 
     # Create and run server
+    server_class = load_server_class()
     config = {"response_format": args.response_format}
-    server = FilesysFastMCPServer(root_dir=args.root_dir, config=config)
+    server = server_class(root_dir=args.root_dir, config=config)
     server.run(transport=args.transport)
 
 

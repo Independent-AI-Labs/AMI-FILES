@@ -11,6 +11,12 @@ import fitz  # PyMuPDF
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
+MIN_TABLE_ROWS = 2
+IMAGE_COLORSPACE_MIME = {
+    1: "image/gray",
+    3: "image/rgb",
+    4: "image/rgba",
+}
 
 
 class PDFExtractor(DocumentExtractor):
@@ -22,9 +28,7 @@ class PDFExtractor(DocumentExtractor):
         """Check if this extractor can handle the given file"""
         return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    async def extract(
-        self, file_path: Path, options: dict[str, Any] | None = None
-    ) -> ExtractionResult:
+    async def extract(self, file_path: Path, options: dict[str, Any] | None = None) -> ExtractionResult:
         """Extract content from PDF"""
         start_time = time.time()
         options = options or {}
@@ -108,14 +112,11 @@ class PDFExtractor(DocumentExtractor):
                     # Extract table data
                     table_data = table.extract()
 
-                    if not table_data or len(table_data) < 2:
+                    if not table_data or len(table_data) < MIN_TABLE_ROWS:
                         continue
 
                     # First row as headers
-                    headers = [
-                        str(h) if h else f"Column_{i}"
-                        for i, h in enumerate(table_data[0])
-                    ]
+                    headers = [str(h) if h else f"Column_{i}" for i, h in enumerate(table_data[0])]
 
                     # Rest as rows
                     rows = []
@@ -153,7 +154,7 @@ class PDFExtractor(DocumentExtractor):
                 image_list = page.get_images()
 
                 for img_idx, img in enumerate(image_list):
-                    # img is (xref, smask, width, height, bpc, colorspace, ...)
+                    # Image tuple order: xref, smask, width, height, bpc, colorspace, ...
                     xref = img[0]
                     width = img[2]
                     height = img[3]
@@ -162,17 +163,7 @@ class PDFExtractor(DocumentExtractor):
                     pix = fitz.Pixmap(pdf, xref)
 
                     # Determine image type
-                    if pix.colorspace:
-                        if pix.n == 1:
-                            mime_type = "image/gray"
-                        elif pix.n == 3:
-                            mime_type = "image/rgb"
-                        elif pix.n == 4:
-                            mime_type = "image/rgba"
-                        else:
-                            mime_type = "image/unknown"
-                    else:
-                        mime_type = "image/unknown"
+                    mime_type = IMAGE_COLORSPACE_MIME.get(pix.n, "image/unknown") if pix.colorspace else "image/unknown"
 
                     image_info = {
                         "page": page_num,

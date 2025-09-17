@@ -1,5 +1,8 @@
 """Integration tests for Filesys FastMCP server using official MCP client."""
 
+# TODO[tests]: Add coverage for document and image tools once persistence and
+#              Gemini workflows stabilize.
+
 import json
 import sys
 import tempfile
@@ -21,9 +24,7 @@ class TestFilesysFastMCPServer:
     async def test_filesys_server_with_client(self) -> None:
         """Test Filesys FastMCP server using official MCP client."""
         # Get the server script path
-        server_script = (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        server_script = Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
         # Use the module's venv python
 
@@ -67,9 +68,7 @@ class TestFilesysFastMCPServer:
     @pytest.mark.asyncio
     async def test_file_operations(self) -> None:
         """Test file read and write operations."""
-        server_script = (
-            Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
-        )
+        server_script = Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
 
         venv_python = EnvironmentSetup.get_module_venv_python(Path(__file__))
 

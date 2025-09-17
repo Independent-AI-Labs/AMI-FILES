@@ -21,3 +21,8 @@ six==1.17.0
 et-xmlfile==2.0.0
 lxml==6.0.0
 charset-normalizer==3.4.3
+
+# Runtime services
+loguru==0.7.3
+aiohttp==3.12.15
+mcp==1.13.1

@@ -154,9 +154,7 @@ class TestFastFileSearcher:
             searcher.close()
 
     @pytest.mark.asyncio
-    async def test_binary_files_excluded_from_content_search(
-        self, temp_dir: Path
-    ) -> None:
+    async def test_binary_files_excluded_from_content_search(self, temp_dir: Path) -> None:
         """Test that binary files are not searched for content."""
         searcher = FastFileSearcher(max_workers=2)
         try:
