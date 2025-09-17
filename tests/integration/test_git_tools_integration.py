@@ -1,5 +1,6 @@
 """Simple integration tests for git tools without subprocess complexity."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -13,34 +14,43 @@ from files.backend.mcp.filesys.tools.git_tools import (
     git_unstage_tool,
 )
 
+_SANITIZED_GIT_ENV_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NAMESPACE",
+    "GIT_COMMON_DIR",
+)
+
+
+def _git_env() -> dict[str, str]:
+    """Return a git environment safe for temporary repositories."""
+    env = dict(os.environ)
+    for var in _SANITIZED_GIT_ENV_VARS:
+        env.pop(var, None)
+    return env
+
+
+def _run_git(args: list[str], cwd: Path) -> None:
+    """Run a git subprocess with sanitized environment."""
+    subprocess.run(["git", *args], cwd=cwd, env=_git_env(), check=True)
+
 
 @pytest.fixture
 async def git_repo(tmp_path: Path) -> Path:
     """Create a temporary git repository."""
     # Initialize git repo
-    subprocess.run(["git", "init"], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=tmp_path,
-        check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=tmp_path,
-        check=True,
-    )
+    _run_git(["init"], tmp_path)
+    _run_git(["config", "user.email", "test@example.com"], tmp_path)
+    _run_git(["config", "user.name", "Test User"], tmp_path)
 
     # Create initial file
     test_file = tmp_path / "test.txt"
     test_file.write_text("Initial content")
 
     # Make initial commit
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Initial commit"],
-        cwd=tmp_path,
-        check=True,
-    )
+    _run_git(["add", "."], tmp_path)
+    _run_git(["commit", "-m", "Initial commit"], tmp_path)
 
     return tmp_path
 
@@ -158,12 +168,8 @@ class TestGitWorkflowDirect:
         for i in range(3):
             file = git_repo / f"file{i}.txt"
             file.write_text(f"Content {i}")
-            subprocess.run(["git", "add", "."], cwd=git_repo, check=True)
-            subprocess.run(
-                ["git", "commit", "-m", f"Commit {i}"],
-                cwd=git_repo,
-                check=True,
-            )
+            _run_git(["add", "."], git_repo)
+            _run_git(["commit", "-m", f"Commit {i}"], git_repo)
 
         # Get limited history
         result = await git_history_tool(root_dir=git_repo, limit=2)

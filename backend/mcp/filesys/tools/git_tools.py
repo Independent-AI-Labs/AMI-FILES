@@ -1,11 +1,40 @@
 """Git tool functions for Filesys MCP server."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from files.backend.mcp.filesys.utils.path_utils import validate_path
 from loguru import logger
+
+_SANITIZED_GIT_ENV_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NAMESPACE",
+    "GIT_COMMON_DIR",
+)
+
+
+def _git_environment() -> dict[str, str]:
+    """Return environment without git variables that break nested repos."""
+    env = dict(os.environ)
+    for var in _SANITIZED_GIT_ENV_VARS:
+        env.pop(var, None)
+    return env
+
+
+def _run_git_command(work_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Execute git command with sanitized environment."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=work_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_git_environment(),
+    )
 
 
 async def git_status_tool(
@@ -21,7 +50,7 @@ async def git_status_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "status"]
+        cmd = ["status"]
         if short:
             cmd.append("--short")
         if branch:
@@ -29,7 +58,7 @@ async def git_status_tool(
         if not untracked:
             cmd.append("--untracked-files=no")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -53,13 +82,13 @@ async def git_stage_tool(
         work_dir = validate_path(root_dir, repo_path or ".")
 
         if stage_all:
-            cmd = ["git", "add", "-A"]
+            cmd = ["add", "-A"]
         elif files:
-            cmd = ["git", "add", *files]
+            cmd = ["add", *files]
         else:
             return {"error": "Must specify files or use stage_all=True"}
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -83,13 +112,13 @@ async def git_unstage_tool(
         work_dir = validate_path(root_dir, repo_path or ".")
 
         if unstage_all:
-            cmd = ["git", "reset", "HEAD"]
+            cmd = ["reset", "HEAD"]
         elif files:
-            cmd = ["git", "reset", "HEAD", *files]
+            cmd = ["reset", "HEAD", *files]
         else:
             return {"error": "Must specify files or use unstage_all=True"}
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -113,13 +142,13 @@ async def git_commit_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "commit", "-m", message]
+        cmd = ["commit", "-m", message]
         if amend:
             cmd.append("--amend")
         if include_tracked:
             cmd.append("-a")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -142,13 +171,13 @@ async def git_diff_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "diff"]
+        cmd = ["diff"]
         if staged:
             cmd.append("--staged")
         if files:
             cmd.extend(files)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -172,13 +201,13 @@ async def git_history_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "log", f"-{limit}"]
+        cmd = ["log", f"-{limit}"]
         if grep:
             cmd.extend(["--grep", grep])
         if oneline:
             cmd.append("--oneline")
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -204,12 +233,12 @@ async def git_restore_tool(
         if not files:
             return {"error": "Must specify files to restore"}
 
-        cmd = ["git", "restore"]
+        cmd = ["restore"]
         if staged:
             cmd.append("--staged")
         cmd.extend(files)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -232,13 +261,13 @@ async def git_fetch_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "fetch"]
+        cmd = ["fetch"]
         if fetch_all:
             cmd.append("--all")
         else:
             cmd.append(remote)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -262,14 +291,14 @@ async def git_pull_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "pull"]
+        cmd = ["pull"]
         if rebase:
             cmd.append("--rebase")
         cmd.append(remote)
         if branch:
             cmd.append(branch)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -294,7 +323,7 @@ async def git_push_tool(
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "push"]
+        cmd = ["push"]
         if force:
             cmd.append("--force")
         if set_upstream:
@@ -303,7 +332,7 @@ async def git_push_tool(
         if branch:
             cmd.append(branch)
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}
@@ -321,9 +350,9 @@ async def git_merge_abort_tool(root_dir: Path, repo_path: str | None = None) -> 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["git", "merge", "--abort"]
+        cmd = ["merge", "--abort"]
 
-        result = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True, check=False)
+        result = _run_git_command(work_dir, *cmd)
 
         if result.returncode != 0:
             return {"error": result.stderr}

@@ -105,7 +105,18 @@ class TestFileTools:
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "items" in response
-                assert len(response["items"]) >= 8  # 3 dirs + 5 files
+                listed = {item["path"] for item in response["items"]}
+                expected_paths = {
+                    "project/src",
+                    "project/tests",
+                    "project/docs",
+                    "project/src/main.py",
+                    "project/src/utils.py",
+                    "project/tests/test_main.py",
+                    "project/docs/README.md",
+                    "project/.gitignore",
+                }
+                assert expected_paths.issubset(listed)
 
                 # 4. Find Python files
                 result = await session.call_tool(
