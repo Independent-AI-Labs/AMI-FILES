@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -26,11 +27,7 @@ class FastFileSearcher:
     def _load_text_extensions(self) -> None:
         """Load text file extensions from resource file."""
         try:
-            res_path = (
-                Path(__file__).parent.parent.parent.parent
-                / "res"
-                / "text_extensions_minimal.json"
-            )
+            res_path = Path(__file__).parent.parent.parent.parent / "res" / "text_extensions_minimal.json"
             if res_path.exists():
                 with res_path.open() as f:
                     data = json.load(f)
@@ -189,20 +186,14 @@ class FastFileSearcher:
             # Check path match
             path_match = False
             if path_automaton or path_regex:
-                path_match = self._search_file_path(
-                    file_path, path_automaton, path_regex
-                )
+                path_match = self._search_file_path(file_path, path_automaton, path_regex)
                 if not path_match and not check_content:
                     continue
 
             # Check content match
             content_match = False
-            if check_content and (not (path_automaton or path_regex) or path_match):
-                # Only check text files for content
-                if self._is_text_file(file_path):
-                    content_match = self._search_file_content(
-                        file_path, content_automaton, content_regex
-                    )
+            if check_content and (not (path_automaton or path_regex) or path_match) and self._is_text_file(file_path):
+                content_match = self._search_file_content(file_path, content_automaton, content_regex)
 
             # Add to results if matched
             if path_match or content_match:
@@ -224,8 +215,8 @@ class FastFileSearcher:
 
         # Check by reading first few bytes
         try:
-            with open(file_path, "rb") as f:
-                chunk = f.read(512)
+            with file_path.open("rb") as file_handle:
+                chunk = file_handle.read(512)
                 # Check for null bytes (binary indicator)
                 if b"\x00" in chunk:
                     return False
@@ -237,6 +228,73 @@ class FastFileSearcher:
                     return False
         except OSError:
             return False
+
+    def _collect_candidate_files(self, directory: Path, max_results: int) -> list[Path]:
+        """Collect candidate files up to the configured search limit."""
+
+        all_files: list[Path] = []
+        try:
+            for file_path in directory.rglob("*"):
+                if file_path.is_file():
+                    all_files.append(file_path)
+                    if len(all_files) >= max_results * 2:
+                        break
+        except (OSError, PermissionError) as error:
+            logger.warning(f"Error scanning directory {directory}: {error}")
+
+        return all_files
+
+    def _prepare_matchers(
+        self,
+        path_keywords: list[str] | None,
+        content_keywords: list[str] | None,
+        regex_mode: bool,
+    ) -> tuple[
+        ahocorasick.Automaton | None,
+        list[regex.Pattern] | None,
+        ahocorasick.Automaton | None,
+        list[regex.Pattern] | None,
+    ]:
+        """Build matcher structures for path and content searches."""
+
+        path_automaton = None
+        path_regex: list[regex.Pattern] | None = None
+        content_automaton = None
+        content_regex: list[regex.Pattern] | None = None
+
+        if path_keywords:
+            if regex_mode:
+                path_regex = self._compile_regex_patterns(path_keywords)
+            else:
+                path_automaton = self._build_aho_corasick(path_keywords)
+
+        if content_keywords:
+            if regex_mode:
+                content_regex = self._compile_regex_patterns(content_keywords)
+            else:
+                content_automaton = self._build_aho_corasick(content_keywords)
+
+        return path_automaton, path_regex, content_automaton, content_regex
+
+    def _split_batches(self, files: list[Path]) -> list[list[Path]]:
+        """Split collected files into thread-friendly batches."""
+
+        if not files:
+            return []
+
+        batch_size = max(1, len(files) // (self.max_workers * 4))
+        return [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+
+    @staticmethod
+    def _flatten_results(batch_results: Iterable[list[str]], max_results: int) -> list[str]:
+        """Flatten batched search results while respecting the limit."""
+
+        results: list[str] = []
+        for batch in batch_results:
+            results.extend(batch)
+            if len(results) >= max_results:
+                break
+        return results[:max_results]
 
     async def search_files(
         self,
@@ -258,51 +316,23 @@ class FastFileSearcher:
         Returns:
             List of matching file paths
         """
-        # Collect all files
-        all_files = []
-        try:
-            for file_path in directory.rglob("*"):
-                if file_path.is_file():
-                    all_files.append(file_path)
-                    if (
-                        len(all_files) >= max_results * 2
-                    ):  # Collect more to account for filtering
-                        break
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning directory {directory}: {e}")
-
+        all_files = self._collect_candidate_files(directory, max_results)
         if not all_files:
             return []
 
-        # Prepare pattern matchers
-        path_automaton = None
-        path_regex = None
-        content_automaton = None
-        content_regex = None
+        path_automaton, path_regex, content_automaton, content_regex = self._prepare_matchers(
+            path_keywords or [],
+            content_keywords or [],
+            regex_mode,
+        )
 
-        if path_keywords:
-            if regex_mode:
-                path_regex = self._compile_regex_patterns(path_keywords)
-            else:
-                path_automaton = self._build_aho_corasick(path_keywords)
+        batches = self._split_batches(all_files)
+        if not batches:
+            return []
 
-        if content_keywords:
-            if regex_mode:
-                content_regex = self._compile_regex_patterns(content_keywords)
-            else:
-                content_automaton = self._build_aho_corasick(content_keywords)
-
-        # Split files into batches for parallel processing
-        batch_size = max(1, len(all_files) // (self.max_workers * 4))
-        batches = [
-            all_files[i : i + batch_size] for i in range(0, len(all_files), batch_size)
-        ]
-
-        # Process batches in parallel
         loop = asyncio.get_event_loop()
-        tasks = []
-        for batch in batches:
-            task = loop.run_in_executor(
+        tasks = [
+            loop.run_in_executor(
                 self.executor,
                 self._process_file_batch,
                 batch,
@@ -312,19 +342,12 @@ class FastFileSearcher:
                 content_regex,
                 bool(content_keywords),
             )
-            tasks.append(task)
+            for batch in batches
+        ]
 
-        # Gather results
         batch_results = await asyncio.gather(*tasks)
 
-        # Combine and limit results
-        all_results = []
-        for batch_result in batch_results:
-            all_results.extend(batch_result)
-            if len(all_results) >= max_results:
-                break
-
-        return all_results[:max_results]
+        return self._flatten_results(batch_results, max_results)
 
     def close(self) -> None:
         """Clean up the thread pool."""

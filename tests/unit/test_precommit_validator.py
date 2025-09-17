@@ -94,9 +94,7 @@ class TestPreCommitValidator:
         validator = PreCommitValidator()
 
         # Mock pre-commit check with failure
-        mock_run.return_value = MagicMock(
-            returncode=1, stdout="Error: Line too long", stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=1, stdout="Error: Line too long", stderr="")
 
         # Mock pre-commit availability
         with (
@@ -179,9 +177,7 @@ class TestPreCommitValidator:
             patch.object(validator, "_check_precommit_available", return_value=True),
             patch.object(validator, "_find_git_root", return_value=Path.cwd()),
         ):
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".py", delete=False
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp:
                 tmp_path = Path(tmp.name)
                 tmp.write("print( 'hello' )")  # Bad formatting
                 tmp.flush()

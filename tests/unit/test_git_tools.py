@@ -93,9 +93,7 @@ class TestGitStatus:
         repo_dir.mkdir()
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="On branch main", stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="On branch main", stderr="")
 
             result = await git_status(mock_root_dir, repo_path="my_repo")
 
@@ -130,9 +128,7 @@ class TestGitStage:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
-            result = await git_stage(
-                mock_root_dir, files=["file.txt"], repo_path="submodule"
-            )
+            result = await git_stage(mock_root_dir, files=["file.txt"], repo_path="submodule")
 
             assert "success" in result
             assert result["success"] is True
@@ -190,7 +186,7 @@ class TestGitUnstage:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
-            result = await git_unstage(mock_root_dir, files=None, all=True)
+            result = await git_unstage(mock_root_dir, files=None, unstage_all=True)
 
             assert "success" in result
             assert result["success"] is True
@@ -239,9 +235,7 @@ class TestGitCommit:
                 stderr="",
             )
 
-            result = await git_commit(
-                mock_root_dir, message="Amended commit", amend=True
-            )
+            result = await git_commit(mock_root_dir, message="Amended commit", amend=True)
 
             assert "success" in result
             assert result["success"] is True
@@ -251,6 +245,7 @@ class TestGitCommit:
                 cwd=mock_root_dir,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
 
@@ -297,6 +292,7 @@ class TestGitDiff:
                 cwd=mock_root_dir,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
     @pytest.mark.asyncio
@@ -431,7 +427,7 @@ class TestGitFetch:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
-            result = await git_fetch(mock_root_dir, all=True)
+            result = await git_fetch(mock_root_dir, fetch_all=True)
 
             assert "success" in result
             assert result["success"] is True
@@ -442,6 +438,7 @@ class TestGitFetch:
                 cwd=mock_root_dir,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
 
@@ -494,6 +491,7 @@ class TestGitPull:
                 cwd=mock_root_dir,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
 
@@ -547,6 +545,7 @@ class TestGitPush:
                 cwd=mock_root_dir,
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
     @pytest.mark.asyncio

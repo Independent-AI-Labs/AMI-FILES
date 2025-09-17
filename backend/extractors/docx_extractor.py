@@ -25,9 +25,7 @@ class DOCXExtractor(DocumentExtractor):
         """Check if this extractor can handle the given file"""
         return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    async def extract(
-        self, file_path: Path, options: dict[str, Any] | None = None
-    ) -> ExtractionResult:
+    async def extract(self, file_path: Path, options: dict[str, Any] | None = None) -> ExtractionResult:
         """Extract content from DOCX"""
         start_time = time.time()
         options = options or {}
@@ -46,80 +44,15 @@ class DOCXExtractor(DocumentExtractor):
         try:
             doc = Document(str(file_path))
 
-            # Extract metadata from core properties
-            if doc.core_properties:
-                result.title = doc.core_properties.title
-                result.author = doc.core_properties.author
-                result.subject = doc.core_properties.subject
-                if doc.core_properties.keywords:
-                    result.keywords = [
-                        k.strip() for k in doc.core_properties.keywords.split(",")
-                    ]
-                result.language = doc.core_properties.language or "en"
+            self._populate_metadata(result, doc)
+            result.sections = self._build_sections(doc)
+            result.full_text = self._collect_full_text(doc)
 
-            # Extract paragraphs and build sections
-            sections = []
-            current_section = None
-            current_content: list[str] = []
-            section_counter = 0
-
-            for paragraph in doc.paragraphs:
-                # Check if paragraph is a heading
-                if paragraph.style and "Heading" in paragraph.style.name:
-                    # Save previous section
-                    if current_section:
-                        current_section["content"] = "\n".join(current_content).strip()
-                        sections.append(current_section)
-
-                    # Start new section
-                    section_counter += 1
-                    level = self._get_heading_level_from_style(paragraph.style.name)
-                    current_section = {
-                        "level": level,
-                        "title": paragraph.text.strip(),
-                        "order": section_counter,
-                        "path": str(section_counter),
-                        "style": paragraph.style.name,
-                    }
-                    current_content = []
-                else:
-                    # Add to current section content
-                    if paragraph.text.strip():
-                        current_content.append(paragraph.text)
-
-            # Save last section
-            if current_section:
-                current_section["content"] = "\n".join(current_content).strip()
-                sections.append(current_section)
-
-            # If no sections found, create from all paragraphs
-            if not sections:
-                all_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-                if all_text:
-                    sections.append(
-                        {
-                            "level": 1,
-                            "title": "Document Content",
-                            "content": all_text,
-                            "order": 1,
-                            "path": "1",
-                        }
-                    )
-
-            result.sections = sections
-
-            # Extract full text
-            result.full_text = "\n".join(p.text for p in doc.paragraphs)
-
-            # Extract tables
             if options.get("extract_tables", True):
-                tables = await self._extract_tables(doc)
-                result.tables = tables
+                result.tables = await self._extract_tables(doc)
 
-            # Extract images
             if options.get("extract_images", False):
-                images = await self._extract_images(doc, file_path)
-                result.images = images
+                result.images = await self._extract_images(doc)
 
         except Exception as e:
             logger.exception(f"Error extracting DOCX {file_path}")
@@ -142,48 +75,143 @@ class DOCXExtractor(DocumentExtractor):
 
         return 1
 
+    def _populate_metadata(self, result: ExtractionResult, doc: Any) -> None:
+        """Populate basic metadata from document core properties."""
+        core = doc.core_properties
+        if not core:
+            return
+
+        result.title = core.title
+        result.author = core.author
+        result.subject = core.subject
+        if core.keywords:
+            result.keywords = [keyword.strip() for keyword in core.keywords.split(",")]
+        result.language = core.language or "en"
+
+    def _build_sections(self, doc: Any) -> list[dict[str, Any]]:
+        """Convert paragraphs into structured sections."""
+        sections: list[dict[str, Any]] = []
+        current_section: dict[str, Any] | None = None
+        current_content: list[str] = []
+        section_counter = 0
+
+        for paragraph in doc.paragraphs:
+            if self._is_heading_paragraph(paragraph):
+                current_section = self._start_new_section(paragraph, sections, current_section, current_content, section_counter)
+                section_counter += 1
+                current_content = []
+                continue
+
+            if paragraph.text.strip():
+                current_content.append(paragraph.text)
+
+        self._flush_section(sections, current_section, current_content)
+        return sections or self._fallback_section(doc)
+
+    def _is_heading_paragraph(self, paragraph: Any) -> bool:
+        """Return True when the paragraph represents a heading."""
+        return bool(paragraph.style and "Heading" in paragraph.style.name)
+
+    def _start_new_section(
+        self,
+        paragraph: Any,
+        sections: list[dict[str, Any]],
+        current_section: dict[str, Any] | None,
+        current_content: list[str],
+        section_counter: int,
+    ) -> dict[str, Any]:
+        """Close the current section and create the next one."""
+        self._flush_section(sections, current_section, current_content)
+
+        next_index = section_counter + 1
+        level = self._get_heading_level_from_style(paragraph.style.name)
+        return {
+            "level": level,
+            "title": paragraph.text.strip(),
+            "order": next_index,
+            "path": str(next_index),
+            "style": paragraph.style.name,
+        }
+
+    def _flush_section(
+        self,
+        sections: list[dict[str, Any]],
+        current_section: dict[str, Any] | None,
+        current_content: list[str],
+    ) -> None:
+        """Finalize and append the current section if it has content."""
+        if not current_section:
+            return
+
+        current_section = {**current_section}  # Avoid mutating shared dict state
+        current_section["content"] = "\n".join(current_content).strip()
+        sections.append(current_section)
+
+    def _fallback_section(self, doc: Any) -> list[dict[str, Any]]:
+        """Create a single section if no structured headings are present."""
+        text = "\n".join(paragraph.text for paragraph in doc.paragraphs if paragraph.text.strip())
+        if not text:
+            return []
+        return [
+            {
+                "level": 1,
+                "title": "Document Content",
+                "content": text,
+                "order": 1,
+                "path": "1",
+            }
+        ]
+
+    def _collect_full_text(self, doc: Any) -> str:
+        """Concatenate entire document text."""
+        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+
     async def _extract_tables(self, doc: Any) -> list[dict[str, Any]]:
         """Extract tables from document"""
-        tables = []
+        tables: list[dict[str, Any]] = []
 
         try:
-            for table_idx, table in enumerate(doc.tables):
-                # Extract headers from first row
-                if len(table.rows) == 0:
+            for index, table in enumerate(doc.tables):
+                if not table.rows:
                     continue
 
-                headers: list[str] = []
-                for cell in table.rows[0].cells:
-                    header_text = cell.text.strip()
-                    if not header_text:
-                        header_text = f"Column_{len(headers)}"
-                    headers.append(header_text)
+                headers = self._extract_table_headers(table)
+                rows = self._extract_table_rows(table, headers)
+                if not rows:
+                    continue
 
-                # Extract data rows
-                rows = []
-                for row in table.rows[1:]:
-                    row_data = {}
-                    for idx, cell in enumerate(row.cells):
-                        if idx < len(headers):
-                            row_data[headers[idx]] = cell.text.strip()
-                    if any(row_data.values()):  # Skip empty rows
-                        rows.append(row_data)
-
-                if rows:
-                    table_data = {
-                        "name": f"Table_{table_idx}",
+                tables.append(
+                    {
+                        "name": f"Table_{index}",
                         "headers": headers,
                         "rows": rows,
                         "schema": self.infer_table_schema(headers, rows),
                     }
-                    tables.append(table_data)
+                )
 
-        except Exception as e:
-            logger.warning(f"Failed to extract tables: {e}")
+        except Exception as exc:  # pragma: no cover - defensive for third-party parser
+            logger.warning(f"Failed to extract tables: {exc}")
 
         return tables
 
-    async def _extract_images(self, doc: Any, file_path: Path) -> list[dict[str, Any]]:
+    def _extract_table_headers(self, table: Any) -> list[str]:
+        """Return normalized table headers."""
+        headers: list[str] = []
+        for cell in table.rows[0].cells:
+            header_text = cell.text.strip() or f"Column_{len(headers)}"
+            headers.append(header_text)
+        return headers
+
+    def _extract_table_rows(self, table: Any, headers: list[str]) -> list[dict[str, Any]]:
+        """Return structured data rows for a table."""
+        rows: list[dict[str, Any]] = []
+        for row in table.rows[1:]:
+            row_data = {headers[idx]: cell.text.strip() for idx, cell in enumerate(row.cells) if idx < len(headers)}
+            if any(row_data.values()):
+                rows.append(row_data)
+        return rows
+
+    async def _extract_images(self, doc: Any) -> list[dict[str, Any]]:
         """Extract images from document"""
         images = []
 

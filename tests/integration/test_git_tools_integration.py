@@ -1,6 +1,7 @@
 """Simple integration tests for git tools without subprocess complexity."""
 
 import subprocess
+from pathlib import Path
 
 import pytest
 from files.backend.mcp.filesys.tools.git_tools import (
@@ -14,7 +15,7 @@ from files.backend.mcp.filesys.tools.git_tools import (
 
 
 @pytest.fixture
-async def git_repo(tmp_path):
+async def git_repo(tmp_path: Path) -> Path:
     """Create a temporary git repository."""
     # Initialize git repo
     subprocess.run(["git", "init"], cwd=tmp_path, check=True)
@@ -48,7 +49,7 @@ class TestGitWorkflowDirect:
     """Test git workflow by calling tools directly."""
 
     @pytest.mark.asyncio
-    async def test_stage_commit_workflow(self, git_repo):
+    async def test_stage_commit_workflow(self, git_repo: Path) -> None:
         """Test staging and committing changes."""
         # Create a new file
         new_file = git_repo / "new_file.txt"
@@ -80,7 +81,7 @@ class TestGitWorkflowDirect:
         # Check that history contains the expected commits
 
     @pytest.mark.asyncio
-    async def test_diff_workflow(self, git_repo):
+    async def test_diff_workflow(self, git_repo: Path) -> None:
         """Test diff functionality."""
         # Modify existing file
         test_file = git_repo / "test.txt"
@@ -105,7 +106,7 @@ class TestGitWorkflowDirect:
         assert "diff" in result
 
     @pytest.mark.asyncio
-    async def test_unstage_workflow(self, git_repo):
+    async def test_unstage_workflow(self, git_repo: Path) -> None:
         """Test unstaging files."""
         # Create and stage a file
         new_file = git_repo / "staged.txt"
@@ -133,7 +134,7 @@ class TestGitWorkflowDirect:
         assert result["diff"] == ""
 
     @pytest.mark.asyncio
-    async def test_restore_workflow(self, git_repo):
+    async def test_restore_workflow(self, git_repo: Path) -> None:
         """Test restoring files."""
         # Modify a file
         test_file = git_repo / "test.txt"
@@ -151,7 +152,7 @@ class TestGitWorkflowDirect:
         assert test_file.read_text() == original_content
 
     @pytest.mark.asyncio
-    async def test_history_filtering(self, git_repo):
+    async def test_history_filtering(self, git_repo: Path) -> None:
         """Test history with filters."""
         # Create multiple commits
         for i in range(3):
@@ -180,7 +181,7 @@ class TestGitEdgeCasesDirect:
     """Test edge cases by calling tools directly."""
 
     @pytest.mark.asyncio
-    async def test_stage_nonexistent_file(self, git_repo):
+    async def test_stage_nonexistent_file(self, git_repo: Path) -> None:
         """Test staging nonexistent file."""
         result = await git_stage_tool(
             root_dir=git_repo,
@@ -191,7 +192,7 @@ class TestGitEdgeCasesDirect:
         assert "pathspec" in result["error"] or "did not match" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_commit_with_no_changes(self, git_repo):
+    async def test_commit_with_no_changes(self, git_repo: Path) -> None:
         """Test committing with no staged changes."""
         result = await git_commit_tool(
             root_dir=git_repo,
@@ -202,7 +203,7 @@ class TestGitEdgeCasesDirect:
             assert "Nothing to commit" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_amend_commit(self, git_repo):
+    async def test_amend_commit(self, git_repo: Path) -> None:
         """Test amending a commit."""
         # Create a file and commit
         file = git_repo / "amend_test.txt"

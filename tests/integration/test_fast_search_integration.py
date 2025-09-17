@@ -69,9 +69,7 @@ class TestFastSearchIntegration:
             results = await searcher.search_files(
                 repo_root / "backend",
                 path_keywords=None,
-                content_keywords=[
-                    r"class\s+\w+.*:\s*\n\s*\"\"\""
-                ],  # Class with docstring
+                content_keywords=[r"class\s+\w+.*:\s*\n\s*\"\"\""],  # Class with docstring
                 regex_mode=True,
                 max_results=50,
             )
@@ -139,9 +137,7 @@ class TestFastSearchIntegration:
 
         logger.info("\nPerformance comparison:")
         logger.info(f"Fast search: {fast_time:.3f}s ({len(fast_results)} files)")
-        logger.info(
-            f"Original search: {original_time:.3f}s ({len(original_results)} files)"
-        )
+        logger.info(f"Original search: {original_time:.3f}s ({len(original_results)} files)")
 
         # Results should be the same
         assert len(fast_results) == len(original_results)
@@ -214,7 +210,5 @@ class TestFastSearchIntegration:
                 searcher.close()
             elapsed = time.time() - start
 
-            logger.info(
-                f"Workers: {workers}, Time: {elapsed:.3f}s, Results: {len(results)}"
-            )
+            logger.info(f"Workers: {workers}, Time: {elapsed:.3f}s, Results: {len(results)}")
             assert len(results) > 0

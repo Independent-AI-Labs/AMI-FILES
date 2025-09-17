@@ -1,14 +1,15 @@
 """File utilities for filesystem MCP server."""
 
 import base64
+import contextlib
 import difflib
 import json
 import platform
 import re
+from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
 from quopri import decodestring, encodestring
-from typing import Any
 
 from files.backend.config import files_config
 from loguru import logger
@@ -62,11 +63,7 @@ class FileUtils:
         # Try to load from config file
         extensions: set[str] = set()
         try:
-            config_path = (
-                Path(__file__).parent.parent.parent.parent.parent
-                / "res"
-                / "file_extensions.json"
-            )
+            config_path = Path(__file__).parent.parent.parent.parent.parent / "res" / "file_extensions.json"
             with config_path.open() as f:
                 data = json.load(f)
 
@@ -180,149 +177,95 @@ class FileUtils:
             return True  # Default to text if unsure
 
     @staticmethod
-    def validate_file_path(file_path: str, root_dir: Path) -> Path:
-        """Validate and resolve a file path, handling both absolute and relative paths.
+    def _normalize_input_path(file_path: str) -> str:
+        """Normalize raw file path strings for consistent downstream handling."""
 
-        This method intelligently handles:
-        - Relative paths: Resolved relative to root_dir
-        - Absolute paths within root_dir: Accepted as-is
-        - Absolute paths that match root_dir structure: Converted to relative
+        if platform.system() != "Windows":
+            return file_path.replace("\\", "/")
+        return file_path
 
-        Args:
-            file_path: File path to validate (absolute or relative)
-            root_dir: Root directory
+    @staticmethod
+    def _is_absolute_like(path_obj: Path, original: str) -> bool:
+        """Detect paths that should be interpreted as absolute."""
 
-        Returns:
-            Resolved path within root directory
+        return path_obj.is_absolute() or original.startswith(("/", "\\"))
 
-        Raises:
-            ValueError: If path is invalid or escapes root directory
-        """
+    @staticmethod
+    def _resolve_if_exists(path_obj: Path) -> Path | None:
+        """Resolve the provided path if it already exists on disk."""
+
+        if not path_obj.exists():
+            return None
+        with contextlib.suppress(OSError):
+            return path_obj.resolve()
+        return None
+
+    @staticmethod
+    def _map_absolute_to_root(path_obj: Path, root_path: Path) -> Path | None:
+        """Attempt to map an absolute path onto the configured root directory."""
+
+        root_parts = root_path.parts
+        if not root_parts:
+            return None
+
+        root_name = root_parts[-1]
+        path_parts = path_obj.parts
+        if root_name not in path_parts:
+            return None
+
+        idx = path_parts.index(root_name)
+        relative_parts = path_parts[idx + 1 :]
+        return Path(*relative_parts) if relative_parts else Path()
+
+    @staticmethod
+    def _combine_with_root(candidate: Path, root_path: Path) -> Path:
+        """Combine the candidate path with the root and normalise it."""
+
+        combined = root_path / candidate
+        with contextlib.suppress(OSError, RuntimeError):
+            return combined.resolve(strict=False)
+        return combined
+
+    @staticmethod
+    def _ensure_within_root(resolved_path: Path, root_path: Path) -> None:
+        """Ensure a resolved path stays within the permitted root."""
+
         try:
-            # Resolve the root directory to an absolute path
+            if resolved_path.is_relative_to(root_path):
+                return
+        except AttributeError:
+            # Python < 3.9 compatibility (should not happen but guard regardless)
+            resolved_str = str(resolved_path).replace("\\", "/")
+            root_str = str(root_path).replace("\\", "/")
+            if resolved_str.startswith(root_str):
+                return
+
+        raise ValueError("Path is outside the allowed root directory")
+
+    @staticmethod
+    def validate_file_path(file_path: str, root_dir: Path) -> Path:
+        """Validate and resolve a file path, handling both absolute and relative paths."""
+
+        try:
             root_path = root_dir.resolve()
+            normalized_input = FileUtils._normalize_input_path(file_path)
+            path_obj = Path(normalized_input)
 
-            # Normalize Windows-style separators to forward slashes on Unix systems
+            if FileUtils._is_absolute_like(path_obj, normalized_input):
+                resolved = FileUtils._resolve_if_exists(path_obj)
+                if resolved and resolved.is_relative_to(root_path):
+                    return resolved
 
-            if platform.system() != "Windows":
-                # On Unix systems, replace backslashes with forward slashes
-                file_path = file_path.replace("\\", "/")
+                mapped = FileUtils._map_absolute_to_root(path_obj, root_path)
+                if mapped is None:
+                    raise ValueError(f"Absolute path '{file_path}' cannot be mapped to root directory '{root_path}'")
+                path_obj = mapped
 
-            # Try to interpret the path
-            path_obj = Path(file_path)
-
-            # Check if it looks like an absolute path (even on Windows where / paths aren't absolute)
-            # A path starting with / or having a drive letter is considered "absolute-like"
-            is_absolute_like = path_obj.is_absolute() or file_path.startswith(
-                ("/", "\\")
-            )
-
-            # If it's an absolute or absolute-like path
-            if is_absolute_like:
-                # First, try to resolve it (but it might not exist)
-                try:
-                    resolved_path = path_obj.resolve()
-
-                    # Check if this absolute path is already within our root
-                    if resolved_path.is_relative_to(root_path):
-                        return resolved_path
-                except (OSError, RuntimeError):
-                    # Path doesn't exist yet, that's OK, we'll handle it below
-                    pass
-
-                # Try to find if this path has the same structure as root
-                # For example, if root is C:/projects/myapp and user provides
-                # C:/other/path/myapp/src/file.py, we try to match from 'myapp' onwards
-                root_parts = root_path.parts
-                path_parts = path_obj.parts  # Use original path_obj, not resolved
-
-                # Find if the root's last directory name appears in the given path
-                if root_parts:
-                    root_name = root_parts[-1]
-                    if root_name in path_parts:
-                        # Find the index and take everything after it
-                        idx = path_parts.index(root_name)
-                        relative_parts = path_parts[idx + 1 :]
-                        if relative_parts:
-                            # Convert to relative path and continue processing
-                            path_obj = Path(*relative_parts)
-                            # Now treat it as a relative path - it's no longer absolute
-                        else:
-                            # Points to root itself
-                            return root_path
-                    else:
-                        # Can't map this absolute path to our root
-                        raise ValueError(
-                            f"Absolute path '{file_path}' cannot be mapped to root directory '{root_path}'"
-                        )
-
-            # Handle as relative path
-            # Don't use resolve() yet as the path might not exist
-            combined_path = root_path / path_obj
-
-            # Normalize the path (remove .., ., etc) without requiring it to exist
-            try:
-                # Try resolve first (if path exists)
-                resolved_path = combined_path.resolve()
-            except (OSError, RuntimeError):
-                # Path doesn't exist, use alternative normalization
-                # This handles .. and . in the path
-                parts = list(combined_path.parts)
-                normalized_parts: list[str] = []
-                for part in parts:
-                    if part == "..":
-                        if normalized_parts and normalized_parts[-1] != "..":
-                            normalized_parts.pop()
-                    elif part != ".":
-                        normalized_parts.append(part)
-                resolved_path = (
-                    Path(*normalized_parts) if normalized_parts else root_path
-                )
-
-            # Security check: ensure the resolved path is within root
-            # For non-existent paths, check by string comparison
-            try:
-                # Convert both to strings with consistent separators for comparison
-                root_str = str(root_path.resolve()).replace("\\", "/")
-                resolved_str = str(resolved_path).replace("\\", "/")
-
-                # Ensure the resolved path starts with the root path
-                if not resolved_str.startswith(root_str):
-                    # Check if path exists first
-                    if resolved_path.exists():
-                        # For existing paths, use is_relative_to
-                        if not resolved_path.is_relative_to(root_path):
-                            raise ValueError(
-                                f"Path '{file_path}' is outside the allowed root directory"
-                            )
-                    else:
-                        # For non-existing paths, check parent directories
-                        check_path = resolved_path
-                        found_existing = False
-                        while check_path != check_path.parent:
-                            if check_path.exists():
-                                found_existing = True
-                                if not check_path.is_relative_to(root_path):
-                                    raise ValueError(
-                                        f"Path '{file_path}' is outside the allowed root directory"
-                                    )
-                                break
-                            check_path = check_path.parent
-
-                        # If no existing parent found, the path is invalid
-                        if not found_existing and not resolved_str.startswith(root_str):
-                            raise ValueError(
-                                f"Path '{file_path}' is outside the allowed root directory"
-                            )
-            except (OSError, ValueError) as e:
-                if "outside the allowed root directory" in str(e):
-                    raise
-                # Some other error, path is probably invalid
-                raise ValueError(f"Invalid path '{file_path}': {e}") from e
-
+            resolved_path = FileUtils._combine_with_root(path_obj, root_path)
+            FileUtils._ensure_within_root(resolved_path, root_path)
             return resolved_path
-        except (OSError, TypeError) as e:
-            raise ValueError(f"Invalid file path '{file_path}': {e}") from e
+        except (OSError, TypeError, ValueError) as error:
+            raise ValueError(f"Invalid file path '{file_path}': {error}") from error
 
     @staticmethod
     def validate_path(path: str, root_dir: Path, must_exist: bool = False) -> Path:
@@ -364,9 +307,7 @@ class FileUtils:
             size = file_path.stat().st_size
             max_size = FileUtils.get_max_file_size()
             if size > max_size:
-                raise ValueError(
-                    f"File too large: {size} bytes (max: {max_size} bytes)"
-                )
+                raise ValueError(f"File too large: {size} bytes (max: {max_size} bytes)")
 
     @staticmethod
     def encode_content(data: bytes, output_format: OutputFormat) -> str | bytes:
@@ -432,6 +373,74 @@ class FileUtils:
         return "".join(diff)
 
     @staticmethod
+    def _compile_patterns(keywords: list[str]) -> list[re.Pattern[str]]:
+        """Compile keywords into regular expressions."""
+
+        return [re.compile(keyword) for keyword in keywords]
+
+    @staticmethod
+    def _make_path_matcher(
+        keywords: list[str],
+        regex_mode: bool,
+    ) -> Callable[[Path], bool] | None:
+        """Create a callable that evaluates path-based keyword matches."""
+
+        if not keywords:
+            return None
+
+        if regex_mode:
+            patterns = FileUtils._compile_patterns(keywords)
+
+            def regex_matcher(file_path: Path) -> bool:
+                path_str = str(file_path)
+                return any(pattern.search(path_str) for pattern in patterns)
+
+            return regex_matcher
+
+        def substring_matcher(file_path: Path) -> bool:
+            path_str = str(file_path)
+            return any(keyword in path_str for keyword in keywords)
+
+        return substring_matcher
+
+    @staticmethod
+    def _make_content_matcher(
+        keywords: list[str],
+        regex_mode: bool,
+    ) -> Callable[[Path], bool] | None:
+        """Create a callable that evaluates content-based keyword matches."""
+
+        if not keywords:
+            return None
+
+        if regex_mode:
+            patterns = FileUtils._compile_patterns(keywords)
+
+            def regex_matcher(file_path: Path) -> bool:
+                if not FileUtils.is_text_file(file_path):
+                    return False
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                except (OSError, UnicodeDecodeError) as error:
+                    logger.warning(f"Error reading file {file_path}: {error}")
+                    return False
+                return any(pattern.search(content) for pattern in patterns)
+
+            return regex_matcher
+
+        def substring_matcher(file_path: Path) -> bool:
+            if not FileUtils.is_text_file(file_path):
+                return False
+            try:
+                content = file_path.read_text(encoding="utf-8", errors="ignore")
+            except (OSError, UnicodeDecodeError) as error:
+                logger.warning(f"Error reading file {file_path}: {error}")
+                return False
+            return any(keyword in content for keyword in keywords)
+
+        return substring_matcher
+
+    @staticmethod
     def find_files(
         directory_path: Path,
         path_keywords: list[str] | None = None,
@@ -439,68 +448,26 @@ class FileUtils:
         regex_mode: bool = False,
         max_results: int = 1000,
     ) -> list[str]:
-        """Find files matching keywords in path or content.
+        """Find files matching keywords in path or content."""
 
-        Args:
-            directory_path: Directory to search in
-            path_keywords: Keywords to match in file paths
-            content_keywords: Keywords to match in file content
-            regex_mode: Whether to treat keywords as regular expressions
-            max_results: Maximum number of results to return
-
-        Returns:
-            List of matching file paths
-        """
-        results: list[str] = []
         path_keywords = path_keywords or []
         content_keywords = content_keywords or []
+        path_matcher = FileUtils._make_path_matcher(path_keywords, regex_mode)
+        content_matcher = FileUtils._make_content_matcher(content_keywords, regex_mode)
 
-        # Compile regex patterns if needed
-        path_patterns: Any
-        content_patterns: Any
-        if regex_mode:
-            path_patterns = [re.compile(kw) for kw in path_keywords]
-            content_patterns = [re.compile(kw) for kw in content_keywords]
-        else:
-            path_patterns = path_keywords
-            content_patterns = content_keywords
-
-        # Search files
+        results: list[str] = []
         for file_path in directory_path.rglob("*"):
             if len(results) >= max_results:
                 break
-
             if not file_path.is_file():
                 continue
 
-            # Check path keywords
-            path_match = False
-            if path_keywords:
-                path_str = str(file_path)
-                if regex_mode:
-                    path_match = any(p.search(path_str) for p in path_patterns)
-                else:
-                    path_match = any(kw in path_str for kw in path_patterns)
-
-            # Check content keywords if needed
+            path_match = path_matcher(file_path) if path_matcher else False
             content_match = False
-            if content_keywords and (not path_keywords or path_match):
-                if FileUtils.is_text_file(file_path):
-                    try:
-                        content = file_path.read_text(encoding="utf-8", errors="ignore")
-                        if regex_mode:
-                            content_match = any(
-                                p.search(content) for p in content_patterns
-                            )
-                        else:
-                            content_match = any(
-                                kw in content for kw in content_patterns
-                            )
-                    except (OSError, UnicodeDecodeError) as e:
-                        logger.warning(f"Error reading file {file_path}: {e}")
+            if content_matcher and (not path_matcher or path_match):
+                content_match = content_matcher(file_path)
 
-            # Add to results if matched
-            if (path_keywords and path_match) or (content_keywords and content_match):
+            if (path_matcher and path_match) or (content_matcher and content_match):
                 results.append(str(file_path))
 
         return results

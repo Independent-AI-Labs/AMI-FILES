@@ -19,42 +19,64 @@ Every file operation is controlled, logged, and compliant with security policies
 
 Production-ready file system control via Model Context Protocol for AI agents and automation tools.
 
-**File Operations:**
+**File Operations (current implementation):**
 
 | Tool | Purpose | Key Features |
 |------|---------|-------------|
-| `list_dir` | List directory contents | Recursive, filtering, limits |
-| `create_dirs` | Create directories | Multiple paths, parents |
-| `find_paths` | Search for files/dirs | Regex, glob patterns |
-| `read_from_file` | Read file contents | Line numbers, encoding |
-| `write_to_file` | Write file contents | Atomic writes, backups |
-| `delete_paths` | Delete files/dirs | Safe delete, recursive |
-| `move_paths` | Move/rename items | Batch operations |
-| `copy_paths` | Copy files/dirs | Preserve metadata |
-| `get_file_info` | Get metadata | Size, dates, permissions |
-| `calculate_hash` | File checksums | MD5, SHA256, SHA512 |
-| `validate_content` | Pre-commit validation | Auto-fix, linting |
+| `list_dir` | List directory contents | Recursive search, glob filtering, hard limits |
+| `create_dirs` | Create directories | Multiple paths, parent creation, sandbox enforcement |
+| `find_paths` | Search for files/dirs | Keyword search, regex/glob support, fast parallel mode |
+| `read_from_file` | Read file contents | Line/byte offsets, encoding control, numbered output |
+| `write_to_file` | Write file contents | Pre-commit validation, text/binary support |
+| `delete_paths` | Delete files/dirs | Recursive deletion with sandbox guard |
+| `modify_file` | Replace content by offsets | Line or byte offsets, validation |
+| `replace_in_file` | Search and replace text | Regex or literal replacement |
 
 **Git Operations:**
 
 | Tool | Purpose | Key Features |
 |------|---------|-------------|
-| `git_status` | Repository status | Staged/unstaged files |
-| `git_diff` | View changes | Unified diff format |
-| `git_stage` | Stage files | Pattern matching |
-| `git_commit` | Create commit | Message templates |
-| `git_log` | View history | Filtering, limits |
-| `git_push` | Push changes | Dry run, force |
+| `git_status` | Repository status | Short/long formats, branch info |
+| `git_stage` | Stage files | Explicit paths or `--all` |
+| `git_unstage` | Unstage files | File selection or full reset |
+| `git_commit` | Create commit | Amend and `--all` support |
+| `git_diff` | View changes | Staged or working tree diffs |
+| `git_history` | View history | Limit, oneline, grep filters |
+| `git_restore` | Restore files | Checkout files with staged toggle |
+| `git_fetch` | Fetch from remote | Remote selection, `--all` |
+| `git_pull` | Pull from remote | Remote/branch selection, rebase |
+| `git_push` | Push changes | Force and set-upstream toggles |
+| `git_merge_abort` | Abort merge | Cleanup conflicted merge state |
+
+**Python Execution:**
+
+| Tool | Purpose | Key Features |
+|------|---------|-------------|
+| `python_run` | Execute Python scripts | Timeout control, cwd override, venv shim |
+| `python_run_background` | Fire-and-forget execution | Background task registry |
+| `python_task_status` | Inspect background task | Status + stdout/stderr snapshot |
+| `python_task_cancel` | Cancel background task | Cooperative cancellation |
+| `python_list_tasks` | Enumerate tasks | Helpful for cleanup |
+
+**Document & Image Analysis:**
+
+| Tool | Purpose | Key Features |
+|------|---------|-------------|
+| `index_document` | Extract and summarize | PDF/DOCX/XLSX routing, optional tables/images |
+| `read_document` | Structured extraction | Sections, tables, metadata |
+| `read_image` | Image metadata & LLM analysis | OCR metadata, Gemini optional |
 
 Transport and runners are module-specific. For programmatic use, import `FilesysFastMCPServer` and configure the desired transport in your own runner.
 
-### 📄 Compliant Document Processing
+### 📄 Document Processing Status
 
-**Secure Processing Features:**
-- **PDF** - Extract with data classification and redaction support
-- **Word** - Parse while preserving document permissions
-- **Excel** - Process with cell-level access control
-- **Images** - OCR with PII detection and masking capabilities
+The document tooling exposes three FastMCP endpoints today:
+
+- `index_document` orchestrates extractor selection, builds `Document*` models in memory, and returns summary metadata.
+- `read_document` provides structured extraction output (sections, tables, images) without persisting results.
+- `read_image` optionally calls Gemini for higher-level analysis when `GEMINI_API_KEY` is configured.
+
+> **Note:** Persistent storage through UnifiedCRUD is not yet wired. See the TODO section for follow-up tasks.
 
 ### ⚡ Fast File Search
 
@@ -82,38 +104,19 @@ export GEMINI_API_KEY="your-api-key-here"
 ```
 
 ### Storage Configuration
-Configure storage backends for document models:
-
-```python
-class Document(StorageModel):
-    class Meta:
-        storage_configs = {
-            "graph": StorageConfig(
-                storage_type=StorageType.GRAPH,
-                host="172.72.72.2",
-                port=9080
-            ),
-            "vector": StorageConfig(
-                storage_type=StorageType.VECTOR,
-                host="172.72.72.2",
-                port=5432
-            )
-        }
-```
+The current implementation keeps extracted `Document*` models in memory only. Storage backends will be reintroduced once UnifiedCRUD wiring is restored (see TODOs).
 
 ## Compliance & Security
 
-### Data Protection Features
-- **Path Sandboxing** - Restrict operations to approved directories
-- **PII Detection** - Automatic identification of sensitive data
-- **Retention Policies** - Automatic file expiry and deletion
-- **Access Logging** - Complete audit trail for compliance
+### Current Safeguards
+- **Path sandboxing** – `validate_path` enforces a protected-directory allowlist for write/delete operations.
+- **Pre-commit validation** – `write_to_file` uses the shared `PreCommitValidator` to lint before writes.
+- **Size limits** – File reads respect `FileUtils.check_file_size` to avoid oversized payloads.
+- **Structured logging** – All tools log success/error paths via `loguru` for observability.
 
-### GDPR Compliance
-- **Right to Access** - Export all files related to a data subject
-- **Right to Erasure** - Secure deletion with verification
-- **Data Portability** - Standard format exports
-- **Consent Tracking** - Document processing permissions
+### Roadmap Items (see TODOs)
+- Persistent audit trail once UnifiedCRUD storage is restored.
+- Optional content validation hooks for additional compliance scanners.
 
 ## Import Conventions
 
@@ -184,6 +187,13 @@ result = await pdf_extractor.extract(
 print(f"Extracted {len(result.sections)} sections")
 print(f"Found {len(result.tables)} tables")
 ```
+
+## TODO
+
+- [ ] Restore parity with the historical tool surface (`move_paths`, `copy_paths`, `get_file_info`, `calculate_hash`, `validate_content`).
+- [ ] Persist `Document*` models using UnifiedCRUD and emit audit records for document workflows.
+- [ ] Extend automated tests to cover document extraction and Gemini-assisted image analysis paths.
+- [ ] Revisit README claims once the above features land to keep docs in sync with reality.
 
 ### MCP Server Usage
 

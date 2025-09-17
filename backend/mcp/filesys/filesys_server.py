@@ -50,9 +50,7 @@ ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
 class FilesysFastMCPServer:
     """Filesystem MCP server using FastMCP."""
 
-    def __init__(
-        self, root_dir: str | None = None, config: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, root_dir: str | None = None, config: dict[str, Any] | None = None) -> None:
         """Initialize Filesystem FastMCP server.
 
         Args:
@@ -82,7 +80,14 @@ class FilesysFastMCPServer:
     def _register_tools(self) -> None:
         """Register filesystem tools with FastMCP."""
 
-        # File system tools
+        self._register_filesystem_tools()
+        self._register_git_tools()
+        self._register_python_tools()
+        self._register_document_tools()
+
+    def _register_filesystem_tools(self) -> None:
+        """Register file manipulation tools."""
+
         @self.mcp.tool(description="List directory contents")
         async def list_dir(
             path: str = ".",
@@ -90,12 +95,10 @@ class FilesysFastMCPServer:
             pattern: str | None = None,
             limit: int = 100,
         ) -> dict[str, Any]:
-            """List directory contents."""
             return await list_dir_tool(self.root_dir, path, recursive, pattern, limit)
 
         @self.mcp.tool(description="Create directories")
         async def create_dirs(paths: list[str]) -> dict[str, Any]:
-            """Create directories."""
             return await create_dirs_tool(self.root_dir, paths)
 
         @self.mcp.tool(description="Find paths matching patterns or keywords")
@@ -109,7 +112,6 @@ class FilesysFastMCPServer:
             max_workers: int = 8,
             recursive: bool = True,
         ) -> dict[str, Any]:
-            """Find paths."""
             return await find_paths_tool(
                 self.root_dir,
                 patterns,
@@ -134,7 +136,6 @@ class FilesysFastMCPServer:
             file_encoding: str = "utf-8",
             add_line_numbers: bool | None = None,
         ) -> dict[str, Any]:
-            """Read from file."""
             return await read_from_file_tool(
                 self.root_dir,
                 path,
@@ -157,7 +158,6 @@ class FilesysFastMCPServer:
             file_encoding: str = "utf-8",
             validate_with_precommit: bool = True,
         ) -> dict[str, Any]:
-            """Write to file."""
             return await write_to_file_tool(
                 self.root_dir,
                 path,
@@ -170,12 +170,9 @@ class FilesysFastMCPServer:
 
         @self.mcp.tool(description="Delete files or directories")
         async def delete_paths(paths: list[str]) -> dict[str, Any]:
-            """Delete paths."""
             return await delete_paths_tool(self.root_dir, paths)
 
-        @self.mcp.tool(
-            description="Modify file by replacing content at specific offsets"
-        )
+        @self.mcp.tool(description="Modify file by replacing content at specific offsets")
         async def modify_file(
             path: str,
             start_offset_inclusive: int,
@@ -183,7 +180,6 @@ class FilesysFastMCPServer:
             new_content: str,
             offset_type: str = "line",
         ) -> dict[str, Any]:
-            """Modify file."""
             return await modify_file_tool(
                 self.root_dir,
                 path,
@@ -195,14 +191,22 @@ class FilesysFastMCPServer:
 
         @self.mcp.tool(description="Replace text in file")
         async def replace_in_file(
-            path: str, old_content: str, new_content: str, is_regex: bool = False
+            path: str,
+            old_content: str,
+            new_content: str,
+            is_regex: bool = False,
         ) -> dict[str, Any]:
-            """Replace in file."""
-            return await replace_in_file_tool(
-                self.root_dir, path, old_content, new_content, is_regex
-            )
+            return await replace_in_file_tool(self.root_dir, path, old_content, new_content, is_regex)
 
-        # Git tools
+    def _register_git_tools(self) -> None:
+        """Register git interaction tools."""
+
+        self._register_git_repo_tools()
+        self._register_git_remote_tools()
+
+    def _register_git_repo_tools(self) -> None:
+        """Register local git repository operations."""
+
         @self.mcp.tool(description="Get git repository status")
         async def git_status(
             repo_path: str | None = None,
@@ -210,38 +214,32 @@ class FilesysFastMCPServer:
             branch: bool = True,
             untracked: bool = True,
         ) -> dict[str, Any]:
-            """Get git status."""
-            return await git_status_tool(
-                self.root_dir, repo_path, short, branch, untracked
-            )
+            return await git_status_tool(self.root_dir, repo_path, short, branch, untracked)
 
         @self.mcp.tool(description="Stage files for commit")
         async def git_stage(
             repo_path: str | None = None,
             files: list[str] | None = None,
-            all: bool = False,
+            stage_all: bool = False,
         ) -> dict[str, Any]:
-            """Stage files."""
-            return await git_stage_tool(self.root_dir, repo_path, files, all)
+            return await git_stage_tool(self.root_dir, repo_path, files, stage_all)
 
         @self.mcp.tool(description="Unstage files")
         async def git_unstage(
             repo_path: str | None = None,
             files: list[str] | None = None,
-            all: bool = False,
+            unstage_all: bool = False,
         ) -> dict[str, Any]:
-            """Unstage files."""
-            return await git_unstage_tool(self.root_dir, repo_path, files, all)
+            return await git_unstage_tool(self.root_dir, repo_path, files, unstage_all)
 
         @self.mcp.tool(description="Commit changes")
         async def git_commit(
             message: str,
             repo_path: str | None = None,
             amend: bool = False,
-            all: bool = False,
+            include_tracked: bool = False,
         ) -> dict[str, Any]:
-            """Commit changes."""
-            return await git_commit_tool(self.root_dir, message, repo_path, amend, all)
+            return await git_commit_tool(self.root_dir, message, repo_path, amend, include_tracked)
 
         @self.mcp.tool(description="Show differences")
         async def git_diff(
@@ -249,7 +247,6 @@ class FilesysFastMCPServer:
             staged: bool = False,
             files: list[str] | None = None,
         ) -> dict[str, Any]:
-            """Show diff."""
             return await git_diff_tool(self.root_dir, repo_path, staged, files)
 
         @self.mcp.tool(description="Show commit history")
@@ -259,10 +256,7 @@ class FilesysFastMCPServer:
             oneline: bool = False,
             grep: str | None = None,
         ) -> dict[str, Any]:
-            """Show history."""
-            return await git_history_tool(
-                self.root_dir, repo_path, limit, oneline, grep
-            )
+            return await git_history_tool(self.root_dir, repo_path, limit, oneline, grep)
 
         @self.mcp.tool(description="Restore files")
         async def git_restore(
@@ -270,15 +264,18 @@ class FilesysFastMCPServer:
             files: list[str] | None = None,
             staged: bool = False,
         ) -> dict[str, Any]:
-            """Restore files."""
             return await git_restore_tool(self.root_dir, repo_path, files, staged)
+
+    def _register_git_remote_tools(self) -> None:
+        """Register git remote interaction tools."""
 
         @self.mcp.tool(description="Fetch from remote")
         async def git_fetch(
-            repo_path: str | None = None, remote: str = "origin", all: bool = False
+            repo_path: str | None = None,
+            remote: str = "origin",
+            fetch_all: bool = False,
         ) -> dict[str, Any]:
-            """Fetch from remote."""
-            return await git_fetch_tool(self.root_dir, repo_path, remote, all)
+            return await git_fetch_tool(self.root_dir, repo_path, remote, fetch_all)
 
         @self.mcp.tool(description="Pull from remote")
         async def git_pull(
@@ -287,7 +284,6 @@ class FilesysFastMCPServer:
             branch: str | None = None,
             rebase: bool = False,
         ) -> dict[str, Any]:
-            """Pull from remote."""
             return await git_pull_tool(self.root_dir, repo_path, remote, branch, rebase)
 
         @self.mcp.tool(description="Push to remote")
@@ -298,17 +294,15 @@ class FilesysFastMCPServer:
             force: bool = False,
             set_upstream: bool = False,
         ) -> dict[str, Any]:
-            """Push to remote."""
-            return await git_push_tool(
-                self.root_dir, repo_path, remote, branch, force, set_upstream
-            )
+            return await git_push_tool(self.root_dir, repo_path, remote, branch, force, set_upstream)
 
         @self.mcp.tool(description="Abort merge")
         async def git_merge_abort(repo_path: str | None = None) -> dict[str, Any]:
-            """Abort merge."""
             return await git_merge_abort_tool(self.root_dir, repo_path)
 
-        # Python execution tools
+    def _register_python_tools(self) -> None:
+        """Register Python execution tools."""
+
         @self.mcp.tool(description="Execute Python script or code")
         async def python_run(
             script: str,
@@ -317,10 +311,7 @@ class FilesysFastMCPServer:
             cwd: str | None = None,
             python: str = "venv",
         ) -> dict[str, Any]:
-            """Execute Python script."""
-            return await python_run_tool(
-                self.root_dir, script, args, timeout, cwd, python
-            )
+            return await python_run_tool(self.root_dir, script, args, timeout, cwd, python)
 
         @self.mcp.tool(description="Execute Python script in background")
         async def python_run_background(
@@ -329,27 +320,23 @@ class FilesysFastMCPServer:
             cwd: str | None = None,
             python: str = "venv",
         ) -> dict[str, Any]:
-            """Execute Python script in background."""
-            return await python_run_background_tool(
-                self.root_dir, script, args, cwd, python
-            )
+            return await python_run_background_tool(self.root_dir, script, args, cwd, python)
 
         @self.mcp.tool(description="Get status of background Python task")
         async def python_task_status(task_id: str) -> dict[str, Any]:
-            """Get Python task status."""
             return await python_task_status_tool(task_id)
 
         @self.mcp.tool(description="Cancel background Python task")
         async def python_task_cancel(task_id: str) -> dict[str, Any]:
-            """Cancel Python task."""
             return await python_task_cancel_tool(task_id)
 
         @self.mcp.tool(description="List all background Python tasks")
         async def python_list_tasks() -> dict[str, Any]:
-            """List Python tasks."""
             return await python_list_tasks_tool()
 
-        # Document tools
+    def _register_document_tools(self) -> None:
+        """Register document analysis tools."""
+
         @self.mcp.tool(description="Parse and index documents for searchable storage")
         async def index_document(
             path: str,
@@ -357,10 +344,7 @@ class FilesysFastMCPServer:
             extract_images: bool = False,
             storage_backends: list[str] | None = None,
         ) -> dict[str, Any]:
-            """Index document."""
-            return await index_document_tool(
-                path, extract_tables, extract_images, storage_backends
-            )
+            return await index_document_tool(path, extract_tables, extract_images, storage_backends)
 
         @self.mcp.tool(description="Read and parse documents into structured data")
         async def read_document(
@@ -369,10 +353,7 @@ class FilesysFastMCPServer:
             extract_tables: bool = True,
             extract_images: bool = False,
         ) -> dict[str, Any]:
-            """Read document."""
-            return await read_document_tool(
-                path, extraction_template, extract_tables, extract_images
-            )
+            return await read_document_tool(path, extraction_template, extract_tables, extract_images)
 
         @self.mcp.tool(description="Analyze images using multimodal LLM")
         async def read_image(
@@ -381,14 +362,9 @@ class FilesysFastMCPServer:
             perform_ocr: bool = True,
             extract_chart_data: bool = False,
         ) -> dict[str, Any]:
-            """Read image."""
-            return await read_image_tool(
-                path, instruction, perform_ocr, extract_chart_data
-            )
+            return await read_image_tool(path, instruction, perform_ocr, extract_chart_data)
 
-    def run(
-        self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
-    ) -> None:
+    def run(self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio") -> None:
         """Run the server.
 
         Args:

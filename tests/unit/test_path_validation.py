@@ -74,9 +74,7 @@ class TestPathValidation:
         # Compare resolved paths to handle symlinks properly
         assert result.resolve() == test_file.resolve()
 
-    def test_absolute_path_outside_root_with_matching_name(
-        self, temp_dir: Path
-    ) -> None:
+    def test_absolute_path_outside_root_with_matching_name(self, temp_dir: Path) -> None:
         """Test handling of absolute paths outside root with matching directory name."""
         # Create the root structure
         root_name = "testproject"
@@ -107,9 +105,7 @@ class TestPathValidation:
 
         # Absolute path that doesn't match our root structure
         with pytest.raises(ValueError) as exc_info:
-            FileUtils.validate_file_path(
-                "/completely/different/path/file.txt", root_dir
-            )
+            FileUtils.validate_file_path("/completely/different/path/file.txt", root_dir)
         assert "cannot be mapped to root directory" in str(exc_info.value)
 
     def test_validate_path_with_must_exist(self, temp_dir: Path) -> None:

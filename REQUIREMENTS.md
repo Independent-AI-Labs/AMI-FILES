@@ -1,5 +1,9 @@
 # Files Module Requirements
 
+> TODO[docs]: Rewrite this specification to align with the current Files module
+> implementation. Large portions still describe legacy UI + sync features that
+> are no longer part of the service.
+
 ## Overview
 Comprehensive file management module providing local and remote file access, synchronization, and advanced visualization capabilities. Features a custom file browser UI with AST structure visualization for code files and dissected content view for documents like PDFs.
 

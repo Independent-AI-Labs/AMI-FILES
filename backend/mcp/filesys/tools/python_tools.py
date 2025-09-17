@@ -1,21 +1,156 @@
 """Safe Python execution tools for filesystem server."""
 
 import asyncio
+import contextlib
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from base.backend.workers.base import WorkerPoolManager
+from base.backend.workers.base import WorkerPool, WorkerPoolManager
 from base.backend.workers.file_subprocess import FileSubprocess
 from base.backend.workers.types import PoolConfig, PoolType
 from files.backend.config import files_config
 from loguru import logger
 
-# Import file-based subprocess from base
+DEFAULT_IMPORT_NAMES = ("sys", "os", "json", "datetime")
+DEFAULT_IMPORT_BLOCK = "\n".join(f"import {name}" for name in DEFAULT_IMPORT_NAMES)
 
-# Module-level pool management
-_pool_manager = None
-_worker_pool = None
+
+class _PythonPoolRegistry:
+    """Manage shared worker pool instances for background Python tasks."""
+
+    def __init__(self) -> None:
+        self._manager: WorkerPoolManager | None = None
+        self._pool: WorkerPool[Any, Any] | None = None
+
+    async def get_or_create_pool(self) -> WorkerPool[Any, Any]:
+        """Return an initialized worker pool, creating it if needed."""
+        if self._pool is None:
+            self._manager = WorkerPoolManager()
+            worker_config = files_config.get_worker_config()
+            config = PoolConfig(
+                name="FilesysPythonBgPool",
+                pool_type=PoolType.PROCESS,
+                max_workers=worker_config["max_workers"],
+                min_workers=worker_config["min_workers"],
+            )
+            self._pool = await self._manager.create_pool(config)
+        return self._pool
+
+    def existing_pool(self) -> WorkerPool[Any, Any] | None:
+        """Return the existing pool if it has been initialized."""
+        return self._pool
+
+
+_POOL_REGISTRY = _PythonPoolRegistry()
+
+
+def _resolve_work_dir(root_dir: Path, cwd: str | None) -> Path:
+    """Resolve and validate the working directory for script execution."""
+
+    if not cwd:
+        return root_dir
+
+    work_dir = Path(cwd)
+    if not work_dir.is_absolute():
+        work_dir = root_dir / work_dir
+
+    work_dir = work_dir.resolve()
+    if not work_dir.is_relative_to(root_dir):
+        raise ValueError("Working directory must be within root directory")
+
+    return work_dir
+
+
+def _python_bin_from_venv(venv_root: Path) -> Path:
+    """Return the Python executable path inside a virtual environment."""
+
+    platform_dir = "Scripts" if sys.platform == "win32" else "bin"
+    return venv_root / ".venv" / platform_dir / "python"
+
+
+def _resolve_python_executable(root_dir: Path, python: str) -> str:
+    """Resolve the Python interpreter to use for execution."""
+
+    if python == "system":
+        python_exe = sys.executable
+        logger.debug(f"Using system Python: {python_exe}")
+        return python_exe
+
+    if python == "venv":
+        candidate = _python_bin_from_venv(root_dir)
+        if candidate.exists():
+            python_exe = str(candidate)
+            logger.debug(f"Using venv Python: {python_exe}")
+            return python_exe
+        python_exe = sys.executable
+        logger.debug(f"No venv found, using system Python: {python_exe}")
+        return python_exe
+
+    custom_path = Path(python)
+    if not custom_path.is_absolute():
+        custom_path = root_dir / custom_path
+
+    candidate = _python_bin_from_venv(custom_path)
+    if not candidate.exists():
+        raise ValueError(f"No .venv found in {custom_path}")
+
+    python_exe = str(candidate)
+    logger.debug(f"Using venv Python from {custom_path}: {python_exe}")
+    return python_exe
+
+
+def _build_script_command(
+    script: str,
+    args: Iterable[str] | None,
+    python_exe: str,
+    root_dir: Path,
+) -> list[str]:
+    """Build the subprocess command for the requested script or code snippet."""
+
+    raw_path = Path(script)
+    args_list = list(args or [])
+
+    script_path: Path | None = None
+    candidate = raw_path if raw_path.is_absolute() else (root_dir / raw_path)
+    with contextlib.suppress(OSError):
+        if candidate.exists() and candidate.is_file():
+            script_path = candidate.resolve()
+        elif raw_path.exists() and raw_path.is_file():
+            script_path = raw_path.resolve()
+
+    if script_path is not None:
+        if not script_path.is_relative_to(root_dir):
+            raise ValueError("Script path must be within root directory")
+
+        argv_repr = ", ".join(repr(item) for item in [str(script_path), *args_list])
+        wrapper_lines = [
+            "import runpy",
+            "import pathlib",
+            *DEFAULT_IMPORT_BLOCK.splitlines(),
+            f"script_path = pathlib.Path({str(script_path)!r})",
+            f"sys.argv = [{argv_repr}]",
+            f"shared_globals = {{name: globals()[name] for name in {DEFAULT_IMPORT_NAMES!r}}}",
+            "runpy.run_path(",
+            "    str(script_path),",
+            '    run_name="__main__",',
+            "    init_globals=shared_globals,",
+            ")",
+        ]
+
+        return [python_exe, "-c", "\n".join(wrapper_lines)]
+
+    script_code = script
+    if script_code:
+        if DEFAULT_IMPORT_BLOCK not in script_code:
+            script_code = f"{DEFAULT_IMPORT_BLOCK}\n{script_code}"
+    else:
+        script_code = DEFAULT_IMPORT_BLOCK
+
+    command = [python_exe, "-c", script_code]
+    command.extend(args_list)
+    return command
 
 
 async def python_run_tool(
@@ -39,86 +174,32 @@ async def python_run_tool(
     Returns:
         Execution result with stdout, stderr, return code, and success flag
     """
+
     try:
-        # Validate working directory
-        if cwd:
-            work_dir = Path(cwd)
-            if not work_dir.is_absolute():
-                work_dir = root_dir / work_dir
-            if not work_dir.resolve().is_relative_to(root_dir):
-                return {
-                    "error": "Working directory must be within root directory",
-                    "success": False,
-                }
-        else:
-            work_dir = root_dir
-
-        # Determine Python executable
-        if python == "system":
-            python_exe = sys.executable
-            logger.debug(f"Using system Python: {python_exe}")
-        elif python == "venv":
-            # Look for venv in root_dir
-            venv_python = (
-                root_dir
-                / ".venv"
-                / ("Scripts" if sys.platform == "win32" else "bin")
-                / "python"
-            )
-            if venv_python.exists():
-                python_exe = str(venv_python)
-                logger.debug(f"Using venv Python: {python_exe}")
-            else:
-                python_exe = sys.executable
-                logger.debug(f"No venv found, using system Python: {python_exe}")
-        else:
-            # Custom path provided
-            custom_path = Path(python)
-            if not custom_path.is_absolute():
-                custom_path = root_dir / custom_path
-            venv_python = (
-                custom_path
-                / ".venv"
-                / ("Scripts" if sys.platform == "win32" else "bin")
-                / "python"
-            )
-            if venv_python.exists():
-                python_exe = str(venv_python)
-                logger.debug(f"Using venv Python from {custom_path}: {python_exe}")
-            else:
-                return {"error": f"No .venv found in {custom_path}", "success": False}
-
-        # Check if script is a file or code
-        script_path = Path(script)
-        if script_path.exists() and script_path.is_file():
-            # Execute file without unbuffered output flag (might be causing issues)
-            cmd_args = [python_exe, str(script_path)]
-        else:
-            # Execute code directly without unbuffered output flag
-            cmd_args = [python_exe, "-c", script]
-
-        # Add additional arguments
-        if args:
-            cmd_args.extend(args)
+        resolved_root = root_dir.resolve()
+        work_dir = _resolve_work_dir(resolved_root, cwd)
+        python_exe = _resolve_python_executable(resolved_root, python)
+        cmd_args = _build_script_command(script, args, python_exe, resolved_root)
 
         logger.debug(f"Executing command: {cmd_args}")
         logger.debug(f"Working directory: {work_dir}")
 
-        # Use file-based subprocess for reliable execution
         executor = FileSubprocess(work_dir=work_dir)
         result: dict[str, Any] = await executor.run(cmd_args, timeout=timeout)
 
         logger.debug(f"Subprocess completed with returncode={result.get('returncode')}")
 
-        # Return result in expected format
         if result.get("timeout"):
             logger.warning(f"Python execution timed out after {timeout} seconds")
 
         return result
 
-    except Exception as e:
-        logger.error(f"Python execution failed: {e}")
-        return {"error": str(e)}
+    except ValueError as error:
+        logger.warning(f"Python execution rejected: {error}")
+        return {"error": str(error), "success": False}
+    except Exception as error:  # noqa: BLE001 - surface the error message to the caller
+        logger.error(f"Python execution failed: {error}")
+        return {"error": str(error), "success": False}
 
 
 async def python_run_background_tool(
@@ -141,41 +222,18 @@ async def python_run_background_tool(
         Task information including task_id
     """
     try:
-        # Import here to avoid circular dependency
+        pool = await _POOL_REGISTRY.get_or_create_pool()
+        timeout = files_config.get_python_timeout("worker_acquire")
+        task_id = await pool.acquire_worker(timeout=timeout)
 
-        global _pool_manager, _worker_pool
-
-        # Get or create pool manager and pool
-        if _pool_manager is None:
-            _pool_manager = WorkerPoolManager()
-            worker_config = files_config.get_worker_config()
-            config = PoolConfig(
-                name="FilesysPythonBgPool",
-                pool_type=PoolType.PROCESS,
-                max_workers=worker_config["max_workers"],
-                min_workers=worker_config["min_workers"],
-            )
-            _worker_pool = await _pool_manager.create_pool(config)
-
-        pool = _worker_pool
-
-        # Submit task to pool
-        task_id = await pool.acquire_worker(
-            timeout=files_config.get_python_timeout("worker_acquire")
-        )
-
-        # Execute in background
         async def execute() -> dict[str, Any]:
             try:
-                result = await python_run_tool(
-                    root_dir, script, args, 0, cwd, python
-                )  # 0 = no timeout
-                return result
+                return await python_run_tool(root_dir, script, args, 0, cwd, python)
             finally:
                 await pool.release_worker(task_id)
 
-        task = asyncio.create_task(execute())
-        del task  # Let it run in background
+        # Fire-and-forget task; caller will poll via task status
+        asyncio.create_task(execute())
 
         return {
             "success": True,
@@ -184,9 +242,9 @@ async def python_run_background_tool(
             "message": f"Python script submitted as background task {task_id}",
         }
 
-    except Exception as e:
-        logger.error(f"Failed to start background Python execution: {e}")
-        return {"error": str(e), "success": False}
+    except Exception as error:  # noqa: BLE001 - propagate failure reason
+        logger.error(f"Failed to start background Python execution: {error}")
+        return {"error": str(error), "success": False}
 
 
 async def python_task_status_tool(task_id: str) -> dict[str, Any]:
@@ -199,12 +257,10 @@ async def python_task_status_tool(task_id: str) -> dict[str, Any]:
         Task status information
     """
     try:
-        global _worker_pool
+        pool = _POOL_REGISTRY.existing_pool()
 
-        if _worker_pool is None:
+        if pool is None:
             return {"error": "No background tasks running", "success": False}
-
-        pool = _worker_pool
 
         # Check worker status
         worker = pool.all_workers.get(task_id)
@@ -222,9 +278,9 @@ async def python_task_status_tool(task_id: str) -> dict[str, Any]:
             "success": False,
         }
 
-    except Exception as e:
-        logger.error(f"Failed to get task status: {e}")
-        return {"error": str(e), "success": False}
+    except Exception as error:  # noqa: BLE001 - propagate failure reason
+        logger.error(f"Failed to get task status: {error}")
+        return {"error": str(error), "success": False}
 
 
 async def python_task_cancel_tool(task_id: str) -> dict[str, Any]:
@@ -237,12 +293,10 @@ async def python_task_cancel_tool(task_id: str) -> dict[str, Any]:
         Cancellation result
     """
     try:
-        global _worker_pool
+        pool = _POOL_REGISTRY.existing_pool()
 
-        if _worker_pool is None:
+        if pool is None:
             return {"error": "No background tasks running", "success": False}
-
-        pool = _worker_pool
 
         # Release the worker (this will cancel the task)
         await pool.release_worker(task_id)
@@ -253,9 +307,9 @@ async def python_task_cancel_tool(task_id: str) -> dict[str, Any]:
             "message": f"Task {task_id} cancelled",
         }
 
-    except Exception as e:
-        logger.error(f"Failed to cancel task: {e}")
-        return {"error": str(e), "success": False}
+    except Exception as error:  # noqa: BLE001 - propagate failure reason
+        logger.error(f"Failed to cancel task: {error}")
+        return {"error": str(error), "success": False}
 
 
 async def python_list_tasks_tool() -> dict[str, Any]:
@@ -265,28 +319,25 @@ async def python_list_tasks_tool() -> dict[str, Any]:
         List of active tasks
     """
     try:
-        global _worker_pool
+        pool = _POOL_REGISTRY.existing_pool()
 
-        if _worker_pool is None:
+        if pool is None:
             return {
                 "tasks": [],
                 "message": "No background tasks running",
                 "success": True,
             }
 
-        pool = _worker_pool
-
-        tasks = []
-        for worker_id, worker in pool.all_workers.items():
-            tasks.append(
-                {
-                    "task_id": worker_id,
-                    "state": worker.state.value,
-                    "created_at": worker.created_at.isoformat(),
-                    "task_count": worker.task_count,
-                    "error_count": worker.error_count,
-                }
-            )
+        tasks = [
+            {
+                "task_id": worker_id,
+                "state": worker.state.value,
+                "created_at": worker.created_at.isoformat(),
+                "task_count": worker.task_count,
+                "error_count": worker.error_count,
+            }
+            for worker_id, worker in pool.all_workers.items()
+        ]
 
         return {
             "success": True,
@@ -299,6 +350,6 @@ async def python_list_tasks_tool() -> dict[str, Any]:
             },
         }
 
-    except Exception as e:
-        logger.error(f"Failed to list tasks: {e}")
-        return {"error": str(e), "success": False}
+    except Exception as error:  # noqa: BLE001 - propagate failure reason
+        logger.error(f"Failed to list tasks: {error}")
+        return {"error": str(error), "success": False}

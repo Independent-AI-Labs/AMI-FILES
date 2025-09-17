@@ -1,7 +1,6 @@
 """Enhanced file content formatter with line numbers and better display."""
 
 
-
 class FileFormatter:
     """Format file content for better readability in MCP responses."""
 
@@ -73,9 +72,7 @@ class FileFormatter:
         return "\n".join(formatted)
 
     @staticmethod
-    def format_search_results(
-        file_path: str, content: str, search_term: str, context_lines: int = 2
-    ) -> str:
+    def format_search_results(file_path: str, content: str, search_term: str, context_lines: int = 2) -> str:
         """Format search results with context.
 
         Args:

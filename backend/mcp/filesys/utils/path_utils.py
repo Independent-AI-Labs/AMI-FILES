@@ -23,12 +23,8 @@ def validate_path(root_dir: Path, path: str, allow_write: bool = True) -> Path:
         # Convert to Path object
         target_path = Path(path)
 
-        # If absolute, ensure it's under root_dir
-        if target_path.is_absolute():
-            resolved = target_path.resolve()
-        else:
-            # If relative, resolve relative to root_dir
-            resolved = (root_dir / target_path).resolve()
+        # Resolve relative to root, regardless of original form
+        resolved = target_path.resolve() if target_path.is_absolute() else (root_dir / target_path).resolve()
 
         # Ensure the resolved path is under root_dir
         resolved_root = root_dir.resolve()
@@ -53,9 +49,7 @@ def validate_path(root_dir: Path, path: str, allow_write: bool = True) -> Path:
             # Check if any part of the path contains protected directories
             for part in path_parts:
                 if part in protected_dirs:
-                    raise ValueError(
-                        f"Cannot modify files in protected directory '{part}'"
-                    )
+                    raise ValueError(f"Cannot modify files in protected directory '{part}'")
 
         return resolved
     except (ValueError, OSError) as e:

@@ -44,9 +44,7 @@ class FilesConfigLoader:
 
             config = yaml.safe_load(content)
             if config is None:
-                logger.warning(
-                    f"Invalid or empty configuration file: {self.config_path}, using defaults"
-                )
+                logger.warning(f"Invalid or empty configuration file: {self.config_path}, using defaults")
                 self._config = self._get_default_config()
                 return
 
@@ -55,9 +53,7 @@ class FilesConfigLoader:
             logger.debug(f"Loaded configuration from {self.config_path}")
 
         except Exception as e:
-            logger.error(
-                f"Error loading config file {self.config_path}: {e}, using defaults"
-            )
+            logger.error(f"Error loading config file {self.config_path}: {e}, using defaults")
             self._config = self._get_default_config()
 
     def _get_default_config(self) -> dict[str, Any]:
@@ -102,17 +98,11 @@ class FilesConfigLoader:
         """Merge loaded config with defaults to ensure all keys exist."""
         defaults = self._get_default_config()
 
-        def merge_dicts(
-            default: dict[str, Any], override: dict[str, Any]
-        ) -> dict[str, Any]:
+        def merge_dicts(default: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
             """Recursively merge dictionaries."""
             result = default.copy()
             for key, value in override.items():
-                if (
-                    key in result
-                    and isinstance(result[key], dict)
-                    and isinstance(value, dict)
-                ):
+                if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                     result[key] = merge_dicts(result[key], value)
                 else:
                     result[key] = value
@@ -168,9 +158,7 @@ class FilesConfigLoader:
     def get_worker_config(self) -> dict[str, int]:
         """Get worker pool configuration."""
         config = self.get_python_tools_config()
-        return cast(
-            dict[str, int], config.get("workers", {"min_workers": 1, "max_workers": 5})
-        )
+        return cast(dict[str, int], config.get("workers", {"min_workers": 1, "max_workers": 5}))
 
 
 # Singleton instance

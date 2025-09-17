@@ -13,6 +13,7 @@ import pandas as pd
 from files.backend.extractors.base import DocumentExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
+MAX_TEXT_ROWS = 100
 
 
 class SpreadsheetExtractor(DocumentExtractor):
@@ -24,9 +25,7 @@ class SpreadsheetExtractor(DocumentExtractor):
         """Check if this extractor can handle the given file"""
         return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    async def extract(
-        self, file_path: Path, options: dict[str, Any] | None = None
-    ) -> ExtractionResult:
+    async def extract(self, file_path: Path, options: dict[str, Any] | None = None) -> ExtractionResult:
         """Extract content from spreadsheet"""
         start_time = time.time()
         options = options or {}
@@ -79,16 +78,14 @@ class SpreadsheetExtractor(DocumentExtractor):
         result.processing_time_ms = int((time.time() - start_time) * 1000)
         return result
 
-    async def _extract_csv(
-        self, file_path: Path, is_tsv: bool = False
-    ) -> list[dict[str, Any]]:
+    async def _extract_csv(self, file_path: Path, is_tsv: bool = False) -> list[dict[str, Any]]:
         """Extract data from CSV/TSV file"""
         tables: list[dict[str, Any]] = []
 
         try:
             delimiter = "\t" if is_tsv else ","
 
-            with open(file_path, encoding="utf-8-sig") as file:
+            with file_path.open(encoding="utf-8-sig") as file:
                 # Try to detect dialect
                 sample = file.read(1024)
                 file.seek(0)
@@ -97,9 +94,7 @@ class SpreadsheetExtractor(DocumentExtractor):
                     dialect = csv.Sniffer().sniff(sample)
                     delimiter = dialect.delimiter
                 except Exception:
-                    logger.debug(
-                        "Failed to detect CSV dialect, using default delimiter"
-                    )
+                    logger.debug("Failed to detect CSV dialect, using default delimiter")
 
                 reader = csv.DictReader(file, delimiter=delimiter)
 
@@ -123,10 +118,8 @@ class SpreadsheetExtractor(DocumentExtractor):
 
             # Try with pandas as fallback
             try:
-                if is_tsv:
-                    df = pd.read_csv(file_path, sep="\t")
-                else:
-                    df = pd.read_csv(file_path)
+                fallback_sep = "\t" if is_tsv else ","
+                df = pd.read_csv(file_path, sep=fallback_sep)
 
                 table_result = self._dataframe_to_table(df, file_path.stem)
                 if table_result:
@@ -141,73 +134,87 @@ class SpreadsheetExtractor(DocumentExtractor):
         tables: list[dict[str, Any]] = []
 
         try:
-            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-
-            for sheet_name in wb.sheetnames:
-                sheet = wb[sheet_name]
-
-                # Find data bounds
-                max_row = sheet.max_row
-                max_col = sheet.max_column
-
-                if max_row == 0 or max_col == 0:
-                    continue
-
-                # Extract headers from first row
-                headers = []
-                for col in range(1, max_col + 1):
-                    cell_value = sheet.cell(1, col).value
-                    header = str(cell_value) if cell_value else f"Column_{col}"
-                    headers.append(header)
-
-                # Extract data rows
-                rows = []
-                for row in range(2, max_row + 1):
-                    row_data = {}
-                    has_data = False
-
-                    for col in range(1, max_col + 1):
-                        cell_value = sheet.cell(row, col).value
-                        if cell_value is not None:
-                            has_data = True
-                            row_data[headers[col - 1]] = cell_value
-
-                    if has_data:
-                        rows.append(row_data)
-
-                if rows:
-                    table = {
-                        "name": sheet_name,
-                        "headers": headers,
-                        "rows": rows,
-                        "schema": self.infer_table_schema(headers, rows),
-                    }
-                    tables.append(table)
-
-            wb.close()
-
+            workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
         except ImportError:
             logger.debug("openpyxl not installed, trying pandas")
+            return await self._extract_excel_with_pandas(file_path)
+        except Exception as exc:
+            logger.warning(f"Failed to open Excel workbook: {exc}")
+            return tables
 
-            # Try with pandas as fallback
-            try:
-                excel_file = pd.ExcelFile(file_path)
-
-                for sheet_name in excel_file.sheet_names:
-                    df = pd.read_excel(excel_file, sheet_name=sheet_name)
-
-                    if not df.empty:
-                        table_result = self._dataframe_to_table(df, sheet_name)
-                        if table_result:
-                            tables.append(table_result)
-
-            except Exception as e:
-                logger.warning(f"Failed to extract Excel with pandas: {e}")
-
-        except Exception as e:
-            logger.warning(f"Failed to extract Excel: {e}")
+        try:
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                table = self._extract_openpyxl_sheet(sheet_name, sheet)
+                if table:
+                    tables.append(table)
+        finally:
+            workbook.close()
 
         return tables
+
+    async def _extract_excel_with_pandas(self, file_path: Path) -> list[dict[str, Any]]:
+        """Fallback Excel extraction using pandas."""
+        tables: list[dict[str, Any]] = []
+        try:
+            excel_file = pd.ExcelFile(file_path)
+        except Exception as exc:  # pragma: no cover - pandas error surface
+            logger.warning(f"Failed to open Excel with pandas: {exc}")
+            return tables
+
+        for sheet_name in excel_file.sheet_names:
+            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+            if df.empty:
+                continue
+            table_result = self._dataframe_to_table(df, sheet_name)
+            if table_result:
+                tables.append(table_result)
+        return tables
+
+    def _extract_openpyxl_sheet(self, sheet_name: str, sheet: Any) -> dict[str, Any] | None:
+        """Extract table data from an openpyxl worksheet."""
+        max_row = sheet.max_row
+        max_col = sheet.max_column
+        if max_row == 0 or max_col == 0:
+            return None
+
+        headers = [self._cell_to_header(sheet.cell(1, col).value, col) for col in range(1, max_col + 1)]
+        rows = self._collect_sheet_rows(sheet, headers, max_row, max_col)
+        if not rows:
+            return None
+
+        return {
+            "name": sheet_name,
+            "headers": headers,
+            "rows": rows,
+            "schema": self.infer_table_schema(headers, rows),
+        }
+
+    def _cell_to_header(self, value: Any, column_index: int) -> str:
+        """Convert a header cell to string value."""
+        return str(value) if value else f"Column_{column_index}"
+
+    def _collect_sheet_rows(
+        self,
+        sheet: Any,
+        headers: list[str],
+        max_row: int,
+        max_col: int,
+    ) -> list[dict[str, Any]]:
+        """Collect non-empty rows from an openpyxl worksheet."""
+        rows: list[dict[str, Any]] = []
+        for row_index in range(2, max_row + 1):
+            row_data: dict[str, Any] = {}
+            has_data = False
+            for col_index in range(1, max_col + 1):
+                cell_value = sheet.cell(row_index, col_index).value
+                if cell_value is None:
+                    continue
+                has_data = True
+                row_data[headers[col_index - 1]] = cell_value
+            if has_data:
+                rows.append(row_data)
+        return rows
 
     def _dataframe_to_table(self, df: Any, name: str) -> dict[str, Any] | None:
         """Convert pandas DataFrame to table dict"""
@@ -258,14 +265,14 @@ class SpreadsheetExtractor(DocumentExtractor):
 
         # Add rows
         rows = table.get("rows", [])
-        for row in rows[:100]:  # Limit to first 100 rows for text representation
+        for row in rows[:MAX_TEXT_ROWS]:
             row_values = []
             for header in headers:
                 value = row.get(header, "")
                 row_values.append(str(value) if value is not None else "")
             lines.append(" | ".join(row_values))
 
-        if len(rows) > 100:
-            lines.append(f"... and {len(rows) - 100} more rows")
+        if len(rows) > MAX_TEXT_ROWS:
+            lines.append(f"... and {len(rows) - MAX_TEXT_ROWS} more rows")
 
         return "\n".join(lines)
