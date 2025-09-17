@@ -1,387 +1,137 @@
-# AMI-FILES: Secure File Operations Platform
+# AMI-FILES
 
-## Business Value
+AMI-FILES implements the orchestration layer's secure file tooling. The module exposes
+filesystem, git, Python execution, and document analysis utilities via a FastMCP
+server that is consumable by automations or other AMI modules. The codebase mirrors
+the structure and guardrails used by `base` and `browser`, including path
+sandboxes, pre-commit style validations, and shared logging patterns.
 
-AMI-FILES ensures all file operations meet enterprise security and compliance requirements. With built-in access controls, audit logging, and sandboxed execution, every file interaction is traceable and compliant with data protection regulations.
+## Feature Surface
 
-## Core Capabilities
+### Filesystem Operations
+- `list_dir` - enumerate directories with optional globbing, recursion, and
+  result limits.
+- `create_dirs` - create one or more directories after sandbox validation.
+- `find_paths` - combine fast keyword search with pattern matching inside the
+  sandbox root.
+- `read_from_file` - slice files with line/byte offsets, encoding transforms,
+  and optional line numbering.
+- `write_to_file` - write text or binary content after running the shared
+  `PreCommitValidator` and size checks.
+- `delete_paths` - remove files or directories recursively with protected-path
+  enforcement.
+- `modify_file` - replace precise line/byte regions with new content.
+- `replace_in_file` - perform literal or regex text replacements.
 
-### 🚀 Secure & Auditable File Operations
-Every file operation is controlled, logged, and compliant with security policies.
+### Git Operations
+- `git_status`, `git_diff`, `git_history`, `git_restore` for local repository
+  inspection and recovery.
+- `git_stage`, `git_unstage`, `git_commit` for manipulating the index.
+- `git_fetch`, `git_pull`, `git_push`, `git_merge_abort` for remote
+  coordination. Parameters mirror the CLI flags allowed by the underlying
+  helpers in `files.backend.mcp.filesys.tools.git_tools`.
 
-**Compliance Features:**
-- **Access Control** - Operations restricted to configured safe paths
-- **Audit Logging** - Every read, write, delete tracked with timestamps
-- **Pre-commit Validation** - Security and compliance checks before changes
-- **Cryptographic Verification** - File integrity checking with hash validation
+### Python Execution
+- `python_run` - execute scripts, modules, or inline code using either the
+  module's virtualenv (`venv`) or the system interpreter. The helper enforces
+  safe working directories and injects standard library imports for scripts
+  executed via `runpy`.
+- `python_run_background` plus `python_task_status`, `python_task_cancel`, and
+  `python_list_tasks` - manage a cooperative background execution pool for
+  longer-running scripts.
 
-### 🔌 Filesys MCP Server
+### Document & Image Analysis
+- `index_document` and `read_document` route to extractor implementations for
+  PDF, DOCX, XLSX/CSV, and plain text files. Output is returned as structured
+  `Document*` models without persisting to storage (UnifiedCRUD integration is
+  still pending).
+- `read_image` provides OCR and high-level reasoning through the shared
+  Gemini client when `GEMINI_API_KEY` is available. When no key is present, the
+  tool gracefully returns metadata-only results.
 
-Production-ready file system control via Model Context Protocol for AI agents and automation tools.
+## Document Pipeline Details
+- Extractors live in `backend/extractors/` and share the
+  `DocumentExtractor` interface defined in `base.py`.
+- Models in `backend/models/document.py` describe the structured payloads that
+  FastMCP responses return.
+- Gemini access is brokered through `backend/services/gemini_client.py`, which
+  centralises authentication, retries, and rate limiting.
+- Persistence is intentionally omitted; callers are expected to manage storage
+  until the UnifiedCRUD layer is reintroduced.
 
-**File Operations (current implementation):**
-
-| Tool | Purpose | Key Features |
-|------|---------|-------------|
-| `list_dir` | List directory contents | Recursive search, glob filtering, hard limits |
-| `create_dirs` | Create directories | Multiple paths, parent creation, sandbox enforcement |
-| `find_paths` | Search for files/dirs | Keyword search, regex/glob support, fast parallel mode |
-| `read_from_file` | Read file contents | Line/byte offsets, encoding control, numbered output |
-| `write_to_file` | Write file contents | Pre-commit validation, text/binary support |
-| `delete_paths` | Delete files/dirs | Recursive deletion with sandbox guard |
-| `modify_file` | Replace content by offsets | Line or byte offsets, validation |
-| `replace_in_file` | Search and replace text | Regex or literal replacement |
-
-**Git Operations:**
-
-| Tool | Purpose | Key Features |
-|------|---------|-------------|
-| `git_status` | Repository status | Short/long formats, branch info |
-| `git_stage` | Stage files | Explicit paths or `--all` |
-| `git_unstage` | Unstage files | File selection or full reset |
-| `git_commit` | Create commit | Amend and `--all` support |
-| `git_diff` | View changes | Staged or working tree diffs |
-| `git_history` | View history | Limit, oneline, grep filters |
-| `git_restore` | Restore files | Checkout files with staged toggle |
-| `git_fetch` | Fetch from remote | Remote selection, `--all` |
-| `git_pull` | Pull from remote | Remote/branch selection, rebase |
-| `git_push` | Push changes | Force and set-upstream toggles |
-| `git_merge_abort` | Abort merge | Cleanup conflicted merge state |
-
-**Python Execution:**
-
-| Tool | Purpose | Key Features |
-|------|---------|-------------|
-| `python_run` | Execute Python scripts | Timeout control, cwd override, venv shim |
-| `python_run_background` | Fire-and-forget execution | Background task registry |
-| `python_task_status` | Inspect background task | Status + stdout/stderr snapshot |
-| `python_task_cancel` | Cancel background task | Cooperative cancellation |
-| `python_list_tasks` | Enumerate tasks | Helpful for cleanup |
-
-**Document & Image Analysis:**
-
-| Tool | Purpose | Key Features |
-|------|---------|-------------|
-| `index_document` | Extract and summarize | PDF/DOCX/XLSX routing, optional tables/images |
-| `read_document` | Structured extraction | Sections, tables, metadata |
-| `read_image` | Image metadata & LLM analysis | OCR metadata, Gemini optional |
-
-Transport and runners are module-specific. For programmatic use, import `FilesysFastMCPServer` and configure the desired transport in your own runner.
-
-### 📄 Document Processing Status
-
-The document tooling exposes three FastMCP endpoints today:
-
-- `index_document` orchestrates extractor selection, builds `Document*` models in memory, and returns summary metadata.
-- `read_document` provides structured extraction output (sections, tables, images) without persisting results.
-- `read_image` optionally calls Gemini for higher-level analysis when `GEMINI_API_KEY` is configured.
-
-> **Note:** Persistent storage through UnifiedCRUD is not yet wired. See the TODO section for follow-up tasks.
-
-### ⚡ Fast File Search
-
-```python
-from files.backend.mcp.filesys.fast_search import FastFileSearcher
-
-searcher = FastFileSearcher("/workspace")
-results = await searcher.search_files(
-    content_keywords=["TODO", "FIXME"],
-    path_pattern="*.py"
-)
-```
-
-## Quick Start
-
-See the orchestrator root README for environment setup. Within a Python environment, use the server classes directly or follow module-specific runner guidance when available.
+## Security & Compliance Guardrails
+- All path arguments pass through `validate_path` in
+  `backend/mcp/filesys/utils/path_utils.py`. Write/delete operations deny access
+  to protected directories such as `.git`, `.venv`, cache folders, and the root
+  of other AMI modules.
+- `write_to_file`, `modify_file`, and `replace_in_file` invoke
+  `PreCommitValidator` to run fast linting before mutating disk.
+- File-size and binary checks inside `FileUtils` prevent accidental processing
+  of excessively large artifacts.
+- Log output uses `loguru` and `logging` consistently; exceptions are logged and
+  re-surfaced to the caller.
 
 ## Configuration
+- Set `GEMINI_API_KEY` to enable multimodal image analysis. Without the key the
+  Gemini client skips remote calls and withholds Gemini-specific fields.
+- Scripts default to the current working directory as the sandbox root. Override
+  by instantiating `FilesysFastMCPServer(root_dir=...)` inside your runner.
+- Module setup is delegated to `base/module_setup.py` via `module_setup.py`, so
+  environment creation stays consistent across AMI modules.
 
-### Gemini API Setup
-Set your Gemini API key as an environment variable:
+## Command-Line Entrypoints
+- `python module_setup.py` - provision the module venv via base tooling.
+- `python scripts/run_filesys.py` - run the Filesys MCP server with stdio
+  transport for local development.
+- `python scripts/run_filesys_fastmcp.py` - launch the FastMCP server using the
+  shared runner helpers.
+- `python scripts/run_tests.py` - execute the module's tests (defaults to the
+  full suite unless flags are provided).
 
-```bash
-export GEMINI_API_KEY="your-api-key-here"
+When using `uv`, these can be invoked with `uv run --directory files ...` from
+repo root.
+
+## Directory Layout
+```
+backend/
+  extractors/            # PDF, DOCX, spreadsheet, and image extractors
+  models/                # Document dataclasses returned by MCP tools
+  services/
+    gemini_client.py     # Multimodal client wrapping Gemini
+  mcp/filesys/
+    filesys_server.py    # FastMCP server wiring
+    tools/               # Tool implementations (filesystem, git, python, document)
+    utils/               # Validation, fast search, and helper utilities
+res/
+  *_extensions.json      # File-type metadata consumed by extractors
+scripts/                 # Local runners and maintenance commands
+tests/                   # Unit and integration coverage for MCP tools
 ```
 
-### Storage Configuration
-The current implementation keeps extracted `Document*` models in memory only. Storage backends will be reintroduced once UnifiedCRUD wiring is restored (see TODOs).
+## Runtime Dependencies
+Key libraries declared in `pyproject.toml` include:
+- `mcp` for the FastMCP server surface
+- `pyahocorasick` and `regex` for fast text search
+- `PyMuPDF`, `python-docx`, `openpyxl`, `pandas`, and `Pillow` for document and
+  spreadsheet parsing
+- `aiohttp` for outbound HTTP calls (Gemini)
+- `loguru` for structured logging
 
-## Compliance & Security
-
-### Current Safeguards
-- **Path sandboxing** – `validate_path` enforces a protected-directory allowlist for write/delete operations.
-- **Pre-commit validation** – `write_to_file` uses the shared `PreCommitValidator` to lint before writes.
-- **Size limits** – File reads respect `FileUtils.check_file_size` to avoid oversized payloads.
-- **Structured logging** – All tools log success/error paths via `loguru` for observability.
-
-### Roadmap Items (see TODOs)
-- Persistent audit trail once UnifiedCRUD storage is restored.
-- Optional content validation hooks for additional compliance scanners.
-
-## Import Conventions
-
-**BREAKING CHANGE (2025-09-02):** All internal imports now use absolute paths with the `files.` prefix.
-
-### Internal Module Imports
-All imports within the files module must use the `files.backend` prefix:
-
-```python
-# Correct - Absolute imports with files prefix
-from files.backend.extractors.pdf_extractor import PDFExtractor
-from files.backend.extractors.docx_extractor import DOCXExtractor
-from files.backend.mcp.filesys.tools.filesystem_tools import list_dir_tool
-
-# Incorrect - Relative imports (deprecated)
-from .extractors import PDFExtractor
-from ..tools.filesystem_tools import list_dir_tool
-```
-
-### Cross-Module Imports
-When importing from other orchestrator modules, use the `base.backend` prefix:
-
-```python
-# Correct - Cross-module import
-from base.backend.utils.standard_imports import setup_imports
-
-# Configuration import from orchestrator
-from base.backend.config.loader import orchestrator_config
-```
-
-### Entry Point Scripts
-Entry point scripts must set up the module path before importing:
-
-```python
-#!/usr/bin/env python
-"""Entry point script pattern."""
-
-from pathlib import Path
-import sys
-
-# Add both files and base to Python path
-MODULE_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(MODULE_ROOT))
-sys.path.insert(0, str(MODULE_ROOT.parent))  # For base imports
-
-# Now safe to import
-from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
-```
-
-## Usage Examples
-
-### Document Extraction
-
-```python
-from files.backend.extractors.pdf_extractor import PDFExtractor
-from files.backend.extractors.docx_extractor import DOCXExtractor
-
-# Extract PDF
-pdf_extractor = PDFExtractor()
-result = await pdf_extractor.extract(
-    Path("document.pdf"),
-    options={
-        "extract_tables": True,
-        "extract_images": True
-    }
-)
-
-print(f"Extracted {len(result.sections)} sections")
-print(f"Found {len(result.tables)} tables")
-```
-
-## TODO
-
-- [ ] Restore parity with the historical tool surface (`move_paths`, `copy_paths`, `get_file_info`, `calculate_hash`, `validate_content`).
-- [ ] Persist `Document*` models using UnifiedCRUD and emit audit records for document workflows.
-- [ ] Extend automated tests to cover document extraction and Gemini-assisted image analysis paths.
-- [ ] Revisit README claims once the above features land to keep docs in sync with reality.
-
-### MCP Server Usage
-
-```python
-from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
-
-# Initialize server
-server = FilesysFastMCPServer()
-
-# Index a document
-result = await server.handle_tool_call(
-    "index_document",
-    {
-        "path": "/path/to/document.pdf",
-        "extract_tables": True,
-        "extract_images": False,
-        "storage_backends": ["graph", "vector"]
-    }
-)
-
-print(f"Document indexed with ID: {result['document_id']}")
-```
-
-### Image Analysis with Gemini
-
-```python
-from files.backend.services.gemini_client import GeminiClient
-
-# Initialize client
-client = GeminiClient(api_key="your-key")
-
-async with client:
-    # Analyze chart
-    result = await client.extract_chart_data("chart.png")
-    print(result["response"])
-    
-    # Perform OCR
-    ocr_result = await client.perform_ocr("scanned_doc.png")
-    print(ocr_result["response"])
-```
-
-### Document Search
-
-```python
-from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
-
-# Initialize search
-searcher = FastFileSearcher("/workspace")
-
-# Search documents
-results = await searcher.search_files(
-    content_keywords=["machine learning"],
-    path_pattern="*.pdf",
-    max_results=10
-)
-
-for result in results:
-    print(f"{result['path']}: {result['score']}")
-```
-
-## Architecture
-
-```
-AMI-FILES/
-├── backend/
-│   ├── extractors/         # Document extractors
-│   │   ├── base.py            # Base extractor class
-│   │   ├── pdf_extractor.py   # PDF processing
-│   │   ├── docx_extractor.py  # Word processing
-│   │   ├── spreadsheet_extractor.py  # Excel/CSV
-│   │   └── image_extractor.py # Image processing
-│   │
-│   ├── models/            # Document models
-│   │   └── document.py       # StorageModel implementations
-│   │
-│   ├── services/          # External services
-│   │   └── gemini_client.py  # Gemini API client
-│   │
-│   └── mcp/               # MCP server
-│       └── filesys/
-│           ├── server.py          # MCP server implementation
-│           ├── fast_search.py     # Fast file search
-│           └── tools/
-│               ├── document_handlers.py  # Document tools
-│               └── git_handlers.py       # Git tools
-│
-├── res/                   # Resources
-│   └── *_extensions.json     # File type definitions
-│
-└── tests/                 # Test suite
-    ├── unit/                 # Unit tests
-    └── integration/          # Integration tests
-```
+Development extras add `pytest`, `pytest-asyncio`, `ruff`, `mypy`, and
+`pre-commit` to match the orchestrator-wide tooling expectations.
 
 ## Testing
-
 ```bash
 # From repository root
-python scripts/run_tests.py -k files
+uv run --directory files python3 scripts/run_tests.py
 
-# Or directly with pytest
-pytest -k files --cov=files/backend --cov-report=term-missing
+# Focus on FastMCP integration tests
+uv run --directory files pytest tests/integration/test_filesys_fastmcp_server.py
 ```
 
-## API Reference
-
-### Extractors
-
-All extractors implement the `DocumentExtractor` base class:
-
-```python
-async def extract(
-    self,
-    file_path: Path,
-    options: dict[str, Any] | None = None
-) -> ExtractionResult
-```
-
-**Options:**
-- `extract_tables`: Extract structured tables
-- `extract_images`: Extract embedded images
-- `max_pages`: Limit pages to process
-- `perform_ocr`: Enable OCR for images
-
-### MCP Tools
-
-**index_document**
-```python
-{
-    "path": str,              # Document path
-    "extract_tables": bool,   # Extract tables
-    "extract_images": bool,   # Extract images
-    "storage_backends": list  # Storage targets
-}
-```
-
-**read_document**
-```python
-{
-    "path": str,                    # Document path
-    "extraction_template": dict,    # Optional template
-    "extract_tables": bool,         # Include tables
-    "extract_images": bool          # Include images
-}
-```
-
-**read_image**
-```python
-{
-    "path": str,                # Image path
-    "instruction": str,         # Analysis instruction
-    "perform_ocr": bool,        # Perform OCR
-    "extract_chart_data": bool  # Extract chart data
-}
-```
-
-## Performance
-
-- PDF processing: ~1000 pages/minute
-- Image analysis: 60 requests/minute (Gemini rate limit)
-- Search: <100ms for 100k files
-- Extraction accuracy: >95% for text, >90% for tables
-
-## Dependencies
-
-Core dependencies:
-- `pymupdf>=1.25.1` - PDF processing
-- `python-docx>=1.1.2` - Word documents
-- `openpyxl>=3.1.5` - Excel files
-- `pandas>=2.2.3` - Data processing
-- `Pillow>=11.1.0` - Image processing
-- `sentence-transformers>=3.3.1` - Embeddings
-- `aiohttp>=3.11.11` - Async HTTP
-
-## Contributing
-
-Please follow the guidelines in `CLAUDE.md`:
-- Use uv for dependency management
-- Run tests before committing
-- Maximum 300 lines per class
-- Proper error handling with logging
-- Type hints on all functions
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-- GitHub Issues: [AMI-FILES Issues](https://github.com/Independent-AI-Labs/AMI-FILES/issues)
-- Main Project: [AMI-ORCHESTRATOR](https://github.com/Independent-AI-Labs/AMI-ORCHESTRATOR)
+## Open Work
+- Wire document persistence through the shared UnifiedCRUD layer when available.
+- Expand integration coverage for complex document extraction flows (large PDFs,
+  image-heavy documents, Gemini-enabled analyses).
+- Continue aligning this module's lint/type configurations with `base` and
+  `browser` as those evolve.

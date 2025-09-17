@@ -1,92 +1,57 @@
-# Filesystem MCP Server
+# Filesystem FastMCP Server
 
-A Model Context Protocol (MCP) server that provides comprehensive filesystem operations following the browser MCP architecture pattern.
+This package exposes the `FilesysFastMCPServer`, a FastMCP implementation that
+powers the AMI-FILES module. It wires filesystem, git, Python execution, and
+document tooling into a single server entry point while reusing the shared
+safety utilities found under `backend/mcp/filesys/utils`.
 
-## Features
+## Registered Tool Families
 
-- **File Operations**: Read, write, modify, and delete files
-- **Directory Management**: Create, list, and navigate directories
-- **Search Capabilities**: Find files by path patterns or content
-- **Content Replacement**: Replace text in files with regex support
-- **Binary Support**: Handle both text and binary files
-- **Encoding Support**: Base64, quoted-printable, and UTF-8 formats
-- **Security**: Path validation to prevent access outside root directory
+### Filesystem
+`list_dir`, `create_dirs`, `find_paths`, `read_from_file`, `write_to_file`,
+`delete_paths`, `modify_file`, `replace_in_file`
 
-## Available Tools
+### Git
+`git_status`, `git_stage`, `git_unstage`, `git_commit`, `git_diff`,
+`git_history`, `git_restore`, `git_fetch`, `git_pull`, `git_push`,
+`git_merge_abort`
 
-### list_dir
-Lists files and subdirectories within a specified directory.
-- Supports recursive listing
-- Configurable result limit
+### Python Execution
+`python_run`, `python_run_background`, `python_task_status`,
+`python_task_cancel`, `python_list_tasks`
 
-### create_dirs
-Creates directories including parent directories as needed.
+### Document & Image
+`index_document`, `read_document`, `read_image`
 
-### find_paths
-Searches for files based on:
-- Keywords in file paths/names
-- Keywords in file content
-- Regular expression support
-
-### read_from_file
-Reads file content with:
-- Offset support (line, char, byte)
-- Multiple output formats
-- Binary file handling
-
-### write_to_file
-Writes content to files with:
-- Text and binary modes
-- Multiple input formats
-- Automatic parent directory creation
-
-### delete_paths
-Deletes multiple files or directories in a single operation.
-
-### modify_file
-Modifies specific ranges within files:
-- Line, character, or byte-based offsets
-- Preserves surrounding content
-
-### replace_in_file
-Replaces content within files:
-- Plain text or regex patterns
-- Control number of replacements
-- Binary and text file support
+Refer to `files.backend.mcp.filesys.tools.*` for argument details and return
+payloads.
 
 ## Usage
-
-### Programmatic Startup
-Use the server class from your own runner or integration.
-
-### Integration with MCP Client
 
 ```python
 from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
 
-# Create server with specific root directory
-server = FilesysFastMCPServer(root_dir="/path/to/files")
-
-# Run with stdio transport
-await server.run_stdio()
-
-# Or run with WebSocket transport
-await server.run_websocket(host="localhost", port=8765)
+server = FilesysFastMCPServer(root_dir="/workspace")
+server.run(transport="stdio")
 ```
 
-## Security
+- `root_dir` defaults to `Path.cwd()` and is validated on startup.
+- Alternative transports supported by FastMCP (`sse`, `streamable-http`) can be
+  passed via `run()`.
 
-All file operations are restricted to the configured root directory. Path traversal attempts are blocked to prevent unauthorized access to system files.
+## Safeguards
+- All tool calls validate paths through `validate_path`, blocking access to
+  protected directories and enforcing the configured root.
+- Mutating operations route through `PreCommitValidator` and `FileUtils` for
+  size checks, binary detection, and lint-style feedback.
+- Background Python tasks are tracked centrally so callers can inspect or cancel
+  long-running work.
 
 ## Testing
 
-The server includes comprehensive test coverage:
-- Unit tests for all operations
-- Integration tests for workflows
-- Error handling validation
-- Protocol compliance verification
-
-Run tests from repository root:
-```bash
-python scripts/run_tests.py -k files
 ```
+uv run --directory files python3 scripts/run_tests.py
+```
+
+Unit and integration suites cover filesystem, git, python, and document flows,
+including FastMCP wiring.
