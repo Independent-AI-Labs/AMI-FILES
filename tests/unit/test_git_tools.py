@@ -38,6 +38,32 @@ from files.backend.mcp.filesys.tools.git_tools import (
     git_unstage_tool as git_unstage,
 )
 
+_SANITIZED_GIT_ENV_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NAMESPACE",
+    "GIT_COMMON_DIR",
+)
+
+
+def _assert_git_call(mock_run: MagicMock, expected_cmd: list[str], cwd: Path) -> None:
+    """Assert git subprocess invocation includes sanitized environment."""
+    assert mock_run.call_args is not None
+    args = mock_run.call_args.args
+    command = args[0]
+    kwargs = mock_run.call_args.kwargs
+    assert command[0] == "git"
+    assert command == expected_cmd
+    assert kwargs["cwd"] == cwd
+    assert kwargs["capture_output"] is True
+    assert kwargs["text"] is True
+    assert kwargs["check"] is False
+    env = kwargs.get("env")
+    assert env is not None
+    for var in _SANITIZED_GIT_ENV_VARS:
+        assert var not in env
+
 
 @pytest.fixture
 def mock_root_dir(tmp_path: Path) -> Path:
@@ -240,12 +266,10 @@ class TestGitCommit:
             assert "success" in result
             assert result["success"] is True
             # Check that --amend flag was used
-            mock_run.assert_called_with(
+            _assert_git_call(
+                mock_run,
                 ["git", "commit", "-m", "Amended commit", "--amend"],
-                cwd=mock_root_dir,
-                capture_output=True,
-                text=True,
-                check=False,
+                mock_root_dir,
             )
 
 
@@ -287,12 +311,10 @@ class TestGitDiff:
             assert "diff" in result
 
             # Check that --staged flag was used
-            mock_run.assert_called_with(
+            _assert_git_call(
+                mock_run,
                 ["git", "diff", "--staged"],
-                cwd=mock_root_dir,
-                capture_output=True,
-                text=True,
-                check=False,
+                mock_root_dir,
             )
 
     @pytest.mark.asyncio
@@ -433,12 +455,10 @@ class TestGitFetch:
             assert result["success"] is True
 
             # Check that --all flag was used
-            mock_run.assert_called_with(
+            _assert_git_call(
+                mock_run,
                 ["git", "fetch", "--all"],
-                cwd=mock_root_dir,
-                capture_output=True,
-                text=True,
-                check=False,
+                mock_root_dir,
             )
 
 
@@ -486,12 +506,10 @@ class TestGitPull:
             assert result["success"] is True
 
             # Check that --rebase flag and origin was used
-            mock_run.assert_called_with(
+            _assert_git_call(
+                mock_run,
                 ["git", "pull", "--rebase", "origin"],
-                cwd=mock_root_dir,
-                capture_output=True,
-                text=True,
-                check=False,
+                mock_root_dir,
             )
 
 
@@ -540,12 +558,10 @@ class TestGitPush:
             assert result["success"] is True
 
             # Check that --force flag and origin was used
-            mock_run.assert_called_with(
+            _assert_git_call(
+                mock_run,
                 ["git", "push", "--force", "origin"],
-                cwd=mock_root_dir,
-                capture_output=True,
-                text=True,
-                check=False,
+                mock_root_dir,
             )
 
     @pytest.mark.asyncio
