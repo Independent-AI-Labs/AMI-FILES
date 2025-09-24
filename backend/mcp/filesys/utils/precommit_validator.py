@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from files.backend.config import files_config
+from files.backend.config.loader import files_config
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
 from loguru import logger
 

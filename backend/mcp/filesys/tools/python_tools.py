@@ -10,7 +10,7 @@ from typing import Any
 from base.backend.workers.base import WorkerPool, WorkerPoolManager
 from base.backend.workers.file_subprocess import FileSubprocess
 from base.backend.workers.types import PoolConfig, PoolType
-from files.backend.config import files_config
+from files.backend.config.loader import files_config
 from loguru import logger
 
 DEFAULT_IMPORT_NAMES = ("sys", "os", "json", "datetime")

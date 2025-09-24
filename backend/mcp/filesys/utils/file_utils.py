@@ -11,7 +11,7 @@ from enum import Enum
 from pathlib import Path
 from quopri import decodestring, encodestring
 
-from files.backend.config import files_config
+from files.backend.config.loader import files_config
 from loguru import logger
 
 
