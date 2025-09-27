@@ -1,85 +1,60 @@
-# AMI-FILES
+# AMI Files Module
 
-AMI-FILES is the orchestration layer's secure file fabric. It gives AI agents
-and human operators a governed way to explore, change, and analyse code or
-content while preserving the compliance posture demanded by regulated teams.
+The Files module exposes governed filesystem operations, git workflows, document extraction, and lightweight Python execution through a FastMCP server. It is designed for agent-driven automation while keeping repository state auditable.
 
-## Why Teams Deploy AMI-FILES
-- Enable automation to change repositories without bypassing enterprise guardrails.
-- Shorten investigation time by pairing fast file search with document and image
-  extraction.
-- Keep git history auditable even when non-engineering agents are issuing
-  commands.
-- Centralise script execution, logging, and validation inside a sandboxed service
-  that mirrors the wider AMI platform policies.
+## Capabilities
 
-## Platform Overview
-AMI-FILES ships as a FastMCP server. Callers interact through MCP tools that map
-one-to-one with guarded operations inside the module. The service sits alongside
-other AMI components but retains its own dependency set and runtime isolation.
+### Filesystem Tools
+- `list_dir`, `find_paths`, `create_dirs`, `read_from_file`, `write_to_file`, `modify_file`, `replace_in_file`, `delete_paths`.
+- Path validation (`validate_path`) prevents access outside the configured root (no writes into `.git`, sibling modules, or `.venv`).
 
-### Capability Pillars
-1. **Governed Filesystem Access** - fine-grained read and write primitives with
-   path validation, pre-commit style linting, and large file checks.
-2. **Version-Control Discipline** - staged git commands so automation stays inside
-the same workflows as human contributors.
-3. **Programmable Execution** - transient Python execution with background task
-   management for data preparation or migration scripts.
-4. **Document Intelligence** - extractor suite for PDFs, spreadsheets, office
-   documents, and images, with optional Gemini reasoning when an API key is
-   present.
+### Git Workflows
+- `git_status`, `git_stage`, `git_unstage`, `git_commit`, `git_restore`, `git_diff`, `git_history`, `git_fetch`, `git_pull`, `git_push`, `git_merge_abort`.
+- Commands run inside the sandbox root so agent actions follow the same controls as human contributors.
 
-### Tool Families
-- **Filesystem:** `list_dir`, `create_dirs`, `find_paths`, `read_from_file`,
-  `write_to_file`, `delete_paths`, `modify_file`, `replace_in_file`
-- **Git:** `git_status`, `git_stage`, `git_unstage`, `git_commit`, `git_diff`,
-  `git_history`, `git_restore`, `git_fetch`, `git_pull`, `git_push`,
-  `git_merge_abort`
-- **Python Execution:** `python_run`, `python_run_background`,
-  `python_task_status`, `python_task_cancel`, `python_list_tasks`
-- **Document and Image:** `index_document`, `read_document`, `read_image`
+### Python Task Runner
+- `python_run`, `python_run_background`, `python_task_status`, `python_task_cancel`, `python_list_tasks` allow short-lived scripts and background jobs.
+- Execution state is tracked in-memory; tasks can be queried or cancelled by id.
 
-## Business-Centric Outcomes
-| Outcome | How AMI-FILES Supports It |
-|---------|---------------------------|
-| Faster incident response | Agents can triage repositories, search logs, and patch issues without waiting for human engineers to run commands. |
-| Audit-ready automation | Every mutation flows through git-aware tooling and is logged with arguments, timings, and validation output. |
-| Safe experimentation | Sandboxing and protected-directory rules stop accidental writes to infrastructure folders or other AMI modules. |
-| Knowledge discovery | Document and image extractors unlock latent information inside PDFs, decks, and scans for downstream analytics. |
+### Document & Image Extraction
+- `index_document`, `read_document` support PDFs, Word, spreadsheets via extractors under `backend/extractors/`.
+- `read_image` wraps OCR/Gemini-assisted analysis when `GEMINI_API_KEY` is available; gracefully degrades without credentials.
 
-## Operating Model
-- **Server:** `FilesysFastMCPServer` consolidates tool registration and enforces
-  the sandbox root supplied at startup.
-- **Utilities:** Shared helpers in `backend/mcp/filesys/utils` provide fast file
-  search, path validation, and pre-commit lifting.
-- **Extractors:** Classes under `backend/extractors` implement the
-  `DocumentExtractor` protocol and return structured models from
-  `backend/models/document.py`.
-- **Gemini Integration:** `backend/services/gemini_client.py` wraps outbound API
-  calls and gracefully degrades when no credentials are configured.
+All tools return structured responses (status, payload, error messages) so callers can attach results to compliance evidence.
 
-## Working With The Module
-- Bootstrap the environment via `python module_setup.py` or
-  `uv run --directory files python3 module_setup.py`.
-- Launch the FastMCP server locally with
-  `uv run --directory files python3 scripts/run_filesys_fastmcp.py`.
-- Run the test suite using
-  `uv run --directory files python3 scripts/run_tests.py`.
-- Set `GEMINI_API_KEY` in the environment to enable multimodal image analysis.
+## Running the FastMCP Server
 
-## Guardrails and Compliance
-- `validate_path` blocks access to protected directories, preventing writes into
-  `.git`, `.venv`, sibling modules, or orchestrator roots.
-- `PreCommitValidator` executes lint and policy checks before content hits disk.
-- `FileUtils` enforces maximum size thresholds and differentiates text versus
-  binary payloads.
-- Background Python tasks are tracked in a registry so callers can inspect,
-  cancel, or retry long-running work.
+```bash
+# StdIO transport
+uv run --python 3.12 --project files python scripts/run_filesys_fastmcp.py --root <path>
 
-## Roadmap Highlights
-- Reconnect document persistence once the orchestrator finalises the UnifiedCRUD
-  layer.
-- Expand coverage for Gemini-assisted extraction workflows in the integration
-  suite.
-- Continue aligning lint/type policies with the `base` and `browser` modules as
-  shared configs evolve.
+# Streamable HTTP transport (for web clients)
+uv run --python 3.12 --project files python scripts/run_filesys_fastmcp.py --transport streamable-http --port 8787
+```
+
+`--root` defaults to the current working directory; set it explicitly for production deployments.
+
+## Tests
+
+```bash
+uv run --python 3.12 --project files python scripts/run_tests.py
+```
+
+Tests cover path validation, git workflows, extractors, and MCP tool wiring. Some extraction tests require libreoffice/ghostscript; they skip automatically if dependencies are absent.
+
+## Environment & Setup
+
+- `module_setup.py` delegates to Base `EnvironmentSetup`; run `uv run --python 3.12 python module_setup.py` from the repository root or `uv run --project files python module_setup.py` from inside the module.
+- `default.env` documents required environment variables (Git author, Gemini API key, etc.).
+- `config/settings.yaml` holds default extractor behaviour; override via env variables mirroring the consolidated compliance docs.
+
+## Compliance Hooks
+
+- Mutating tools should log to the Base audit trail once the compliance backend is implemented. The current implementation logs at INFO level via `loguru`; map these events to `audit_log` as part of the compliance server work.
+- MCP tool schemas align with the consolidated requirements in `compliance/docs/consolidated`; reference those docs when extending capabilities.
+
+## Roadmap
+
+1. Wire audit logging + evidence export into the forthcoming compliance MCP server.
+2. Persist extraction results using Base DataOps once the compliance backend adds evidence storage.
+3. Expand document/image tests with golden fixtures when Gemini support is toggled on.
