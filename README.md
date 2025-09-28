@@ -1,6 +1,10 @@
 # AMI Files Module
 
-The Files module exposes governed filesystem operations, git workflows, document extraction, and lightweight Python execution through a FastMCP server. It is designed for agent-driven automation while keeping repository state auditable.
+Files lets agents collaborate on repositories the way engineers do—safely, transparently, and with rich tooling for documents and automation. It packages governed filesystem access, Git workflows, and extraction utilities behind a single FastMCP surface so you can ship features without risking uncontrolled edits.
+
+## What You Get
+
+The module exposes filesystem tools, Git helpers, document/image extraction, and a Python runner tailored for agent-driven automation while keeping repository state auditable.
 
 ## Capabilities
 
