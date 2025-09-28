@@ -2,37 +2,29 @@
 """Runner script for Filesys FastMCP server."""
 
 import argparse
-import importlib
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
-
-MODULE_ROOT = Path(__file__).resolve().parent.parent
-
-if TYPE_CHECKING:
-    # Only imported for typing to avoid circular runtime dependencies.
-    from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer
 
 
-def configure_sys_path() -> None:
-    """Ensure repository roots are on sys.path for dynamic imports."""
-
-    for candidate in (MODULE_ROOT, MODULE_ROOT.parent):
-        candidate_str = str(candidate)
-        if candidate_str not in sys.path:
-            sys.path.insert(0, candidate_str)
-
-
-def load_server_class() -> type["FilesysFastMCPServer"]:
-    """Import the Filesys FastMCP server after sys.path is ready."""
-
-    configure_sys_path()
-    module = importlib.import_module("files.backend.mcp.filesys.filesys_server")
-    return cast("type[FilesysFastMCPServer]", module.FilesysFastMCPServer)
+def _ensure_repo_on_path() -> None:
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / ".git").exists() and (current / "base").exists():
+            sys.path.insert(0, str(current))
+            return
+        current = current.parent
 
 
 def main() -> None:
     """Run the Filesys FastMCP server."""
+
+    _ensure_repo_on_path()
+
+    from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: PLC0415
+
+    ensure_module_venv(Path(__file__))
+
+    from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer  # noqa: PLC0415
 
     parser = argparse.ArgumentParser(description="Filesys FastMCP Server")
     parser.add_argument(
@@ -59,9 +51,8 @@ def main() -> None:
     args = parser.parse_args()
 
     # Create and run server
-    server_class = load_server_class()
     config = {"response_format": args.response_format}
-    server = server_class(root_dir=args.root_dir, config=config)
+    server = FilesysFastMCPServer(root_dir=args.root_dir, config=config)
     server.run(transport=args.transport)
 
 
