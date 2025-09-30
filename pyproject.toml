@@ -9,43 +9,43 @@ authors = [ { name = "AMI Team" } ]
 dependencies = [
   # Files module specific
   "pyahocorasick==2.2.0",
-  "regex==2025.7.34",
-  "PyYAML==6.0.2",
+  "regex==2025.9.18",
+  "PyYAML==6.0.3",
   # Database connectivity
   "asyncpg==0.30.0",
   # Document processing
-  "PyMuPDF==1.26.3",
-  "python-docx==1.1.0",
-  "openpyxl==3.1.2",
-  "pandas==2.2.0",
+  "PyMuPDF==1.26.4",
+  "python-docx==1.2.0",
+  "openpyxl==3.1.5",
+  "pandas==2.3.3",
   "Pillow==11.3.0",
   # deps for pandas/openpyxl
-  "numpy==1.26.4",
+  "numpy==2.3.3",
   "python-dateutil==2.9.0.post0",
   "pytz==2025.2",
   "six==1.17.0",
   "et-xmlfile==2.0.0",
-  "lxml==6.0.0",
+  "lxml==6.0.2",
   "charset-normalizer==3.4.3",
   # Runtime services
   "loguru==0.7.3",
   "aiohttp==3.12.15",
-  "mcp==1.13.1",
+  "mcp==1.15.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest==8.4.1",
-  "pytest-asyncio==1.1.0",
-  "pytest-aiohttp==1.0.5",
-  "pytest-cov==6.2.1",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.2.0",
+  "pytest-aiohttp==1.1.0",
+  "pytest-cov==7.0.0",
   "pytest-timeout==2.4.0",
-  "pytest-mock==3.14.1",
-  "faker==37.5.3",
-  "ruff==0.12.8",
+  "pytest-mock==3.15.1",
+  "faker==37.8.0",
+  "ruff==0.13.2",
   "pre-commit==4.3.0",
-  "mypy==1.17.1",
-  "types-PyYAML==6.0.12.20250809",
+  "mypy==1.18.2",
+  "types-PyYAML==6.0.12.20250915",
 ]
 
 [project.scripts]
@@ -63,17 +63,17 @@ include = ["files*"]
 [tool.uv]
 package = true
 dev-dependencies = [
-  "pytest==8.4.1",
-  "pytest-asyncio==1.1.0",
-  "pytest-aiohttp==1.0.5",
-  "pytest-cov==6.2.1",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.2.0",
+  "pytest-aiohttp==1.1.0",
+  "pytest-cov==7.0.0",
   "pytest-timeout==2.4.0",
-  "pytest-mock==3.14.1",
-  "faker==37.5.3",
-  "ruff==0.12.8",
+  "pytest-mock==3.15.1",
+  "faker==37.8.0",
+  "ruff==0.13.2",
   "pre-commit==4.3.0",
-  "mypy==1.17.1",
-  "types-PyYAML==6.0.12.20250809",
+  "mypy==1.18.2",
+  "types-PyYAML==6.0.12.20250915",
 ]
 
 [tool.ruff]

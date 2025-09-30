@@ -1,28 +1,29 @@
 # FILES module specific requirements
 pyahocorasick==2.2.0
-regex==2025.7.34
-PyYAML==6.0.2
+regex==2025.9.18
+PyYAML==6.0.3
 
 # Database connectivity
 asyncpg==0.30.0
 
 # Document processing
-PyMuPDF==1.26.3
-python-docx==1.1.0
-openpyxl==3.1.2
-pandas==2.2.0
+PyMuPDF==1.26.4
+python-docx==1.2.0
+openpyxl==3.1.5
+pandas==2.3.3
 Pillow==11.3.0
 
 # Dependencies for pandas/openpyxl
-numpy==1.26.4
+numpy==2.3.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
 six==1.17.0
 et-xmlfile==2.0.0
-lxml==6.0.0
+mcp==1.15.0
+lxml==6.0.2
 charset-normalizer==3.4.3
 
 # Runtime services
 loguru==0.7.3
 aiohttp==3.12.15
-mcp==1.13.1
+types-PyYAML==6.0.12.20250915
