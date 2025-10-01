@@ -410,7 +410,7 @@ class TestGitRestore:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_restore_fallback_to_checkout(self, mock_root_dir: Path) -> None:
+    async def test_restore_reports_checkout_failure(self, mock_root_dir: Path) -> None:
         """Test restore failure."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(

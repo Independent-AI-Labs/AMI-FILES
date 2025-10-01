@@ -7,6 +7,7 @@ from typing import Any, ClassVar
 
 from base.backend.config.loader import storage_config
 from base.backend.dataops.models.base_model import StorageModel
+from base.backend.dataops.models.security import SecurityContext
 from base.backend.dataops.models.storage_config import StorageConfig
 from base.backend.utils.standard_imports import setup_imports
 from pydantic import Field
@@ -63,9 +64,9 @@ class Document(StorageModel):
             {"field": "author", "type": "hash"},
         ]
 
-    def to_storage_dict(self) -> dict[str, Any]:
+    def to_storage_dict(self, context: SecurityContext | None = None) -> dict[str, Any]:
         """Convert to dictionary for storage with proper serialization"""
-        data: dict[str, Any] = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict(context=context)
 
         # Additional serialization for document-specific fields
         if self.keywords:
@@ -160,9 +161,9 @@ class DocumentTable(StorageModel):
             {"field": "relational_table", "type": "hash"},
         ]
 
-    def to_storage_dict(self) -> dict[str, Any]:
+    def to_storage_dict(self, context: SecurityContext | None = None) -> dict[str, Any]:
         """Convert to dictionary for storage"""
-        data: dict[str, Any] = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict(context=context)
 
         # Ensure proper serialization of complex fields
         if self.headers:
@@ -222,9 +223,9 @@ class DocumentImage(StorageModel):
             {"field": "mime_type", "type": "hash"},
         ]
 
-    def to_storage_dict(self) -> dict[str, Any]:
+    def to_storage_dict(self, context: SecurityContext | None = None) -> dict[str, Any]:
         """Convert to dictionary for storage"""
-        data: dict[str, Any] = super().to_storage_dict()
+        data: dict[str, Any] = super().to_storage_dict(context=context)
 
         # Ensure proper serialization
         if self.dimensions:

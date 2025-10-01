@@ -228,7 +228,7 @@ async def _collect_keyword_matches(
     use_fast_search: bool,
     max_workers: int,
 ) -> list[str]:
-    """Return keyword-based matches using fast search or fallback scan."""
+    """Return keyword-based matches using the configured search strategy."""
     if use_fast_search:
         searcher = FastFileSearcher(max_workers=max_workers)
         try:

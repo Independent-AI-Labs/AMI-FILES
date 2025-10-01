@@ -106,7 +106,7 @@ class DOCXExtractor(DocumentExtractor):
                 current_content.append(paragraph.text)
 
         self._flush_section(sections, current_section, current_content)
-        return sections or self._fallback_section(doc)
+        return sections or self._build_default_section(doc)
 
     def _is_heading_paragraph(self, paragraph: Any) -> bool:
         """Return True when the paragraph represents a heading."""
@@ -147,8 +147,8 @@ class DOCXExtractor(DocumentExtractor):
         current_section["content"] = "\n".join(current_content).strip()
         sections.append(current_section)
 
-    def _fallback_section(self, doc: Any) -> list[dict[str, Any]]:
-        """Create a single section if no structured headings are present."""
+    def _build_default_section(self, doc: Any) -> list[dict[str, Any]]:
+        """Create a single section when no structured headings are present."""
         text = "\n".join(paragraph.text for paragraph in doc.paragraphs if paragraph.text.strip())
         if not text:
             return []

@@ -26,36 +26,29 @@ class FastFileSearcher:
 
     def _load_text_extensions(self) -> None:
         """Load text file extensions from resource file."""
+        res_path = Path(__file__).resolve().parents[4] / "res" / "text_extensions_minimal.json"
+        if not res_path.exists():
+            raise FileNotFoundError("Required resource text_extensions_minimal.json is missing. " "Run the files module setup to regenerate managed resources.")
+
         try:
-            res_path = Path(__file__).parent.parent.parent.parent / "res" / "text_extensions_minimal.json"
-            if res_path.exists():
-                with res_path.open() as f:
-                    data = json.load(f)
-                    self.text_extensions = set(data.get("text_extensions", []))
-            else:
-                # Fallback to basic set
-                self.text_extensions = {
-                    ".txt",
-                    ".md",
-                    ".py",
-                    ".js",
-                    ".json",
-                    ".xml",
-                    ".yaml",
-                    ".yml",
-                }
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning(f"Failed to load text extensions: {e}")
-            self.text_extensions = {
-                ".txt",
-                ".md",
-                ".py",
-                ".js",
-                ".json",
-                ".xml",
-                ".yaml",
-                ".yml",
-            }
+            with res_path.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Resource text_extensions_minimal.json contains invalid JSON. " "Validate the file and rerun the files module bootstrap.") from exc
+        except OSError as exc:
+            raise RuntimeError("Unable to load text_extensions_minimal.json due to an IO error.") from exc
+
+        extensions = data.get("text_extensions")
+        if not isinstance(extensions, list) or not extensions:
+            raise ValueError("Resource text_extensions_minimal.json must define a non-empty 'text_extensions' list.")
+
+        normalised = []
+        for ext in extensions:
+            if not isinstance(ext, str) or not ext:
+                raise ValueError("All text extensions must be non-empty strings.")
+            normalised.append(ext if ext.startswith(".") else f".{ext}")
+
+        self.text_extensions = set(normalised)
 
     def _build_aho_corasick(self, keywords: list[str]) -> ahocorasick.Automaton:
         """Build Aho-Corasick automaton for exact string matching.
