@@ -197,7 +197,7 @@ async def python_run_tool(
     except ValueError as error:
         logger.warning(f"Python execution rejected: {error}")
         return {"error": str(error), "success": False}
-    except Exception as error:  # noqa: BLE001 - surface the error message to the caller
+    except (OSError, RuntimeError, TimeoutError) as error:
         logger.error(f"Python execution failed: {error}")
         return {"error": str(error), "success": False}
 
@@ -242,7 +242,7 @@ async def python_run_background_tool(
             "message": f"Python script submitted as background task {task_id}",
         }
 
-    except Exception as error:  # noqa: BLE001 - propagate failure reason
+    except (OSError, RuntimeError, ValueError) as error:
         logger.error(f"Failed to start background Python execution: {error}")
         return {"error": str(error), "success": False}
 
@@ -278,7 +278,7 @@ async def python_task_status_tool(task_id: str) -> dict[str, Any]:
             "success": False,
         }
 
-    except Exception as error:  # noqa: BLE001 - propagate failure reason
+    except (RuntimeError, KeyError) as error:
         logger.error(f"Failed to get task status: {error}")
         return {"error": str(error), "success": False}
 
@@ -307,7 +307,7 @@ async def python_task_cancel_tool(task_id: str) -> dict[str, Any]:
             "message": f"Task {task_id} cancelled",
         }
 
-    except Exception as error:  # noqa: BLE001 - propagate failure reason
+    except (RuntimeError, KeyError) as error:
         logger.error(f"Failed to cancel task: {error}")
         return {"error": str(error), "success": False}
 
@@ -350,6 +350,6 @@ async def python_list_tasks_tool() -> dict[str, Any]:
             },
         }
 
-    except Exception as error:  # noqa: BLE001 - propagate failure reason
+    except RuntimeError as error:
         logger.error(f"Failed to list tasks: {error}")
         return {"error": str(error), "success": False}

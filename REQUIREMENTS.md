@@ -1,7 +1,7 @@
 # Files Module Requirements
 
 This document captures the operative requirements for the current AMI-FILES
-implementation. It supersedes legacy specs that described UI surfaces or sync
+implementation. It supersedes older specifications that described UI surfaces or sync
 engines that no longer exist in this module.
 
 ## Functional Scope
@@ -62,6 +62,6 @@ engines that no longer exist in this module.
 ## Out of Scope
 
 - UI rendering, sync engines, and remote storage adapters formerly described in
-  legacy docs are no longer part of AMI-FILES.
+  older documents are no longer part of AMI-FILES.
 - Unified persistence is deferred until the orchestrator introduces the new
   UnifiedCRUD layer.

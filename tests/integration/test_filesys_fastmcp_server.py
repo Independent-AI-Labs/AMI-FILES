@@ -4,17 +4,16 @@
 #              Gemini workflows stabilize.
 
 import json
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-from base.backend.utils.environment_setup import EnvironmentSetup
+from base.scripts.env.paths import find_module_root
+from base.scripts.env.venv import get_venv_python
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-# Add files to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# sys.path already configured by conftest.py
 
 
 class TestFilesysFastMCPServer:
@@ -24,11 +23,12 @@ class TestFilesysFastMCPServer:
     async def test_filesys_server_with_client(self) -> None:
         """Test Filesys FastMCP server using official MCP client."""
         # Get the server script path
-        server_script = Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
+        module_root = find_module_root(Path(__file__))
+        server_script = module_root / "scripts" / "run_filesys_fastmcp.py"
 
         # Use the module's venv python
-
-        venv_python = EnvironmentSetup.get_module_venv_python(Path(__file__))
+        module_root = find_module_root(Path(__file__))
+        venv_python = get_venv_python(module_root)
 
         # Create temporary directory for testing
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -68,9 +68,11 @@ class TestFilesysFastMCPServer:
     @pytest.mark.asyncio
     async def test_file_operations(self) -> None:
         """Test file read and write operations."""
-        server_script = Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
+        module_root = find_module_root(Path(__file__))
+        server_script = module_root / "scripts" / "run_filesys_fastmcp.py"
 
-        venv_python = EnvironmentSetup.get_module_venv_python(Path(__file__))
+        module_root = find_module_root(Path(__file__))
+        venv_python = get_venv_python(module_root)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             server_params = StdioServerParameters(

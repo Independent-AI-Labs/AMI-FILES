@@ -28,13 +28,13 @@ class FastFileSearcher:
         """Load text file extensions from resource file."""
         res_path = Path(__file__).resolve().parents[4] / "res" / "text_extensions_minimal.json"
         if not res_path.exists():
-            raise FileNotFoundError("Required resource text_extensions_minimal.json is missing. " "Run the files module setup to regenerate managed resources.")
+            raise FileNotFoundError("Required resource text_extensions_minimal.json is missing. Run the files module setup to regenerate managed resources.")
 
         try:
             with res_path.open(encoding="utf-8") as handle:
                 data = json.load(handle)
         except json.JSONDecodeError as exc:
-            raise ValueError("Resource text_extensions_minimal.json contains invalid JSON. " "Validate the file and rerun the files module bootstrap.") from exc
+            raise ValueError("Resource text_extensions_minimal.json contains invalid JSON. Validate the file and rerun the files module bootstrap.") from exc
         except OSError as exc:
             raise RuntimeError("Unable to load text_extensions_minimal.json due to an IO error.") from exc
 
@@ -228,6 +228,9 @@ class FastFileSearcher:
         all_files: list[Path] = []
         try:
             for file_path in directory.rglob("*"):
+                # Skip .venv directories
+                if ".venv" in file_path.parts:
+                    continue
                 if file_path.is_file():
                     all_files.append(file_path)
                     if len(all_files) >= max_results * 2:

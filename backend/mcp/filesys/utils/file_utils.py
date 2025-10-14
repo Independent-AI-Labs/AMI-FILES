@@ -63,7 +63,16 @@ class FileUtils:
         # Try to load from config file
         extensions: set[str] = set()
         try:
-            config_path = Path(__file__).parent.parent.parent.parent.parent / "res" / "file_extensions.json"
+            # Find module root by looking for marker file
+            current = Path(__file__).resolve()
+            while current != current.parent:
+                if (current / "res" / "file_extensions.json").exists():
+                    config_path = current / "res" / "file_extensions.json"
+                    break
+                current = current.parent
+            else:
+                raise FileNotFoundError("Could not find file_extensions.json")
+
             with config_path.open() as f:
                 data = json.load(f)
 
@@ -229,16 +238,8 @@ class FileUtils:
     @staticmethod
     def _ensure_within_root(resolved_path: Path, root_path: Path) -> None:
         """Ensure a resolved path stays within the permitted root."""
-
-        try:
-            if resolved_path.is_relative_to(root_path):
-                return
-        except AttributeError:
-            # Python < 3.9 compatibility (should not happen but guard regardless)
-            resolved_str = str(resolved_path).replace("\\", "/")
-            root_str = str(root_path).replace("\\", "/")
-            if resolved_str.startswith(root_str):
-                return
+        if resolved_path.is_relative_to(root_path):
+            return
 
         raise ValueError("Path is outside the allowed root directory")
 

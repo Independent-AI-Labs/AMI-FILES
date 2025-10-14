@@ -40,7 +40,16 @@ CATEGORY_DESCRIPTIONS: dict[str, str] = {
     "programming": "{lang}",
 }
 
-RESOURCE_DIR = Path(__file__).resolve().parent.parent / "res"
+# Find module root
+_current = Path(__file__).resolve()
+while _current != _current.parent:
+    if (_current / "res").exists():
+        RESOURCE_DIR = _current / "res"
+        break
+    _current = _current.parent
+else:
+    raise FileNotFoundError("Could not find res/ directory")
+
 BIGCODE_JSON = RESOURCE_DIR / "bigcode_extensions.json"
 TEXT_EXTENSIONS_JSON = RESOURCE_DIR / "text_extensions.json"
 MINIMAL_TEXT_EXTENSIONS_JSON = RESOURCE_DIR / "text_extensions_minimal.json"

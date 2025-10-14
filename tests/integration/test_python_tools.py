@@ -2,20 +2,19 @@
 
 import asyncio
 import json
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 import pytest
-from base.backend.utils.environment_setup import EnvironmentSetup
+from base.scripts.env.paths import find_module_root
+from base.scripts.env.venv import get_venv_python
 from loguru import logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import TextContent
 
-# Add files to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# sys.path already configured by conftest.py
 
 
 def get_text_content(result: object) -> str:
@@ -34,14 +33,14 @@ class TestPythonExecution:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
+        module_root = find_module_root(Path(__file__))
+        return module_root / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-
-        result = EnvironmentSetup.get_module_venv_python(Path(__file__))
-        return Path(result)
+        module_root = find_module_root(Path(__file__))
+        return get_venv_python(module_root)
 
     async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""
@@ -295,14 +294,14 @@ class TestPythonErrorHandling:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
+        module_root = find_module_root(Path(__file__))
+        return module_root / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-
-        result = EnvironmentSetup.get_module_venv_python(Path(__file__))
-        return Path(result)
+        module_root = find_module_root(Path(__file__))
+        return get_venv_python(module_root)
 
     async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""
@@ -417,14 +416,14 @@ class TestPythonComplexScenarios:
     @pytest.fixture
     def server_script(self) -> Path:
         """Get the server script path."""
-        return Path(__file__).parent.parent.parent / "scripts" / "run_filesys_fastmcp.py"
+        module_root = find_module_root(Path(__file__))
+        return module_root / "scripts" / "run_filesys_fastmcp.py"
 
     @pytest.fixture
     def venv_python(self) -> Path:
         """Get the venv Python executable."""
-
-        result = EnvironmentSetup.get_module_venv_python(Path(__file__))
-        return Path(result)
+        module_root = find_module_root(Path(__file__))
+        return get_venv_python(module_root)
 
     async def _get_client_session(self, venv_python: Path, server_script: Path, temp_dir: str) -> Any:
         """Helper to get client session."""

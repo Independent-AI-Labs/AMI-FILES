@@ -1,30 +1,22 @@
 #!/usr/bin/env python
 """Runner script for Filesys MCP server."""
 
+# Standard library imports FIRST
 import argparse
 import sys
 from pathlib import Path
 
+# Bootstrap sys.path - MUST come before base imports
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "base").exists())))
 
-def _ensure_repo_on_path() -> None:
-    current = Path(__file__).resolve().parent
-    while current != current.parent:
-        if (current / ".git").exists() and (current / "base").exists():
-            sys.path.insert(0, str(current))
-            return
-        current = current.parent
+# Now we can import from base
+from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: E402
+from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer  # noqa: E402
 
 
 def main() -> None:
     """Run the Filesys MCP server."""
-
-    _ensure_repo_on_path()
-
-    from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: PLC0415
-
     ensure_module_venv(Path(__file__))
-
-    from files.backend.mcp.filesys.filesys_server import FilesysFastMCPServer  # noqa: PLC0415
 
     parser = argparse.ArgumentParser(description="Filesys MCP Server")
     parser.add_argument(

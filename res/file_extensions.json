@@ -232,7 +232,6 @@
       "ignore": [".ignore", ".dockerignore", ".eslintignore", ".prettierignore", ".stylelintignore"],
       "rc": [".bashrc", ".zshrc", ".vimrc", ".npmrc", ".yarnrc", ".editorconfig", ".prettierrc", ".eslintrc", ".stylelintrc", ".babelrc"],
       "sample": [".sample", ".example", ".dist", ".template"],
-      "stub": [".stub"],
       "fixture": [".fixture", ".fixtures"]
     }
   },

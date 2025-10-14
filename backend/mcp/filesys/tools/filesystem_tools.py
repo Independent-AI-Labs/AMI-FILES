@@ -514,7 +514,7 @@ async def modify_file_tool(
     offset_type: str = "line",
 ) -> dict[str, Any]:
     """Modify file by replacing content at specific offsets."""
-    logger.debug(f"Modifying file: path={path}, start={start_offset_inclusive}, " f"end={end_offset_inclusive}, offset_type={offset_type}")
+    logger.debug(f"Modifying file: path={path}, start={start_offset_inclusive}, end={end_offset_inclusive}, offset_type={offset_type}")
 
     try:
         safe_path = validate_path(root_dir, path, allow_write=False)

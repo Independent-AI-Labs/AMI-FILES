@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import pytest
+from base.scripts.env.paths import find_module_root
 from files.backend.mcp.filesys.utils.fast_search import FastFileSearcher
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
 from loguru import logger
@@ -15,7 +16,7 @@ class TestFastSearchIntegration:
     @pytest.fixture
     def repo_root(self) -> Path:
         """Get the FILES module root directory."""
-        return Path(__file__).parent.parent.parent
+        return find_module_root(Path(__file__))
 
     @pytest.mark.asyncio
     async def test_search_python_files(self, repo_root: Path) -> None:

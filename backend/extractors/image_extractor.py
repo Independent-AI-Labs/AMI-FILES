@@ -212,9 +212,7 @@ class ImageExtractor(DocumentExtractor):
             logger.debug("GEMINI_API_KEY not set, skipping LLM OCR")
             return None
 
-        prompt = (
-            "Extract every piece of textual content that appears inside this image. " "Return the raw text only without additional commentary or formatting."
-        )
+        prompt = "Extract every piece of textual content that appears inside this image. Return the raw text only without additional commentary or formatting."
 
         try:
             async with GeminiClient(api_key) as client:

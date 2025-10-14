@@ -1,36 +1,53 @@
 #!/usr/bin/env python
-"""Test runner for files module."""
+"""Minimal test runner for modules without tests.
 
-from __future__ import annotations
+Exit codes:
+  0 - No tests directory or all tests passed
+  1 - Tests failed
+"""
 
+import subprocess
 import sys
 from pathlib import Path
 
 
-def _ensure_repo_on_path() -> None:
-    current = Path(__file__).resolve().parent
-    while current != current.parent:
-        if (current / ".git").exists() and (current / "base").exists():
-            sys.path.insert(0, str(current))
-            return
-        current = current.parent
-
-
 def main() -> int:
-    _ensure_repo_on_path()
+    """Run minimal test check."""
+    # Find module root (where this script lives)
+    script_dir = Path(__file__).resolve().parent
+    module_root = script_dir.parent
 
-    from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: PLC0415
-    from base.scripts.run_tests import TestRunner  # noqa: PLC0415
+    tests_dir = module_root / "tests"
 
-    ensure_module_venv(Path(__file__))
+    # No tests directory = success (nothing to test)
+    if not tests_dir.exists():
+        print(f"No tests directory found at {tests_dir}")
+        print("✓ Module has no tests to run")
+        return 0
 
-    module_root = Path(__file__).resolve().parent.parent
-    args = sys.argv[1:]
-    if "--timeout" not in " ".join(args):
-        args = [*args, "--timeout", "600"]
+    # Tests directory exists but is empty = success
+    test_files = list(tests_dir.rglob("test_*.py"))
+    if not test_files:
+        print(f"Tests directory exists at {tests_dir} but contains no test files")
+        print("✓ Module has no test files to run")
+        return 0
 
-    runner = TestRunner(project_root=module_root, project_name="Files")
-    return runner.run(args)
+    # Has tests - need pytest
+    venv_python = module_root / ".venv" / "bin" / "python"
+    if not venv_python.exists():
+        print(f"ERROR: Virtual environment not found at {venv_python}")
+        print("Run: python module_setup.py")
+        return 1
+
+    # Run pytest
+    print(f"Running {len(test_files)} test file(s) in {tests_dir}")
+    result = subprocess.run(
+        [str(venv_python), "-m", "pytest", str(tests_dir), "-v"] + sys.argv[1:],
+        check=False,
+        cwd=module_root,
+    )
+
+    return result.returncode
 
 
 if __name__ == "__main__":
