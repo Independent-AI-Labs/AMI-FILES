@@ -6,9 +6,14 @@ Exit codes:
   1 - Tests failed
 """
 
+import logging
 import subprocess
 import sys
 from pathlib import Path
+
+# Setup logger
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -21,26 +26,26 @@ def main() -> int:
 
     # No tests directory = success (nothing to test)
     if not tests_dir.exists():
-        print(f"No tests directory found at {tests_dir}")
-        print("✓ Module has no tests to run")
+        logger.info(f"No tests directory found at {tests_dir}")
+        logger.info("✓ Module has no tests to run")
         return 0
 
     # Tests directory exists but is empty = success
     test_files = list(tests_dir.rglob("test_*.py"))
     if not test_files:
-        print(f"Tests directory exists at {tests_dir} but contains no test files")
-        print("✓ Module has no test files to run")
+        logger.info(f"Tests directory exists at {tests_dir} but contains no test files")
+        logger.info("✓ Module has no test files to run")
         return 0
 
     # Has tests - need pytest
     venv_python = module_root / ".venv" / "bin" / "python"
     if not venv_python.exists():
-        print(f"ERROR: Virtual environment not found at {venv_python}")
-        print("Run: python module_setup.py")
+        logger.error(f"ERROR: Virtual environment not found at {venv_python}")
+        logger.error("Run: python module_setup.py")
         return 1
 
     # Run pytest
-    print(f"Running {len(test_files)} test file(s) in {tests_dir}")
+    logger.info(f"Running {len(test_files)} test file(s) in {tests_dir}")
     result = subprocess.run(
         [str(venv_python), "-m", "pytest", str(tests_dir), "-v"] + sys.argv[1:],
         check=False,
