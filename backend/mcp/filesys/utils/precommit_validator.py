@@ -1,6 +1,7 @@
 """Pre-commit validation for file operations."""
 
 import contextlib
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -9,6 +10,21 @@ from typing import Any
 from files.backend.config.loader import files_config
 from files.backend.mcp.filesys.utils.file_utils import FileUtils
 from loguru import logger
+
+
+def _get_precommit_executable() -> str:
+    """Get absolute path to pre-commit executable.
+
+    Returns:
+        Absolute path to pre-commit command
+
+    Raises:
+        RuntimeError: If pre-commit is not found in PATH
+    """
+    precommit_path = shutil.which("pre-commit")
+    if precommit_path is None:
+        raise RuntimeError("pre-commit is not installed or not in PATH")
+    return precommit_path
 
 
 class PreCommitValidator:
@@ -28,8 +44,9 @@ class PreCommitValidator:
         """
         try:
             # Check if pre-commit is installed
+            precommit_exe = _get_precommit_executable()
             result = subprocess.run(
-                ["pre-commit", "--version"],
+                [precommit_exe, "--version"],
                 capture_output=True,
                 text=True,
                 timeout=files_config.get_precommit_timeout("version_check"),
@@ -195,8 +212,9 @@ class PreCommitValidator:
             tmp_path.write_text(modified_content, encoding=encoding)
 
         try:
+            precommit_exe = _get_precommit_executable()
             recheck = subprocess.run(
-                ["pre-commit", "run", "--files", str(rel_path)],
+                [precommit_exe, "run", "--files", str(rel_path)],
                 cwd=git_root,
                 capture_output=True,
                 text=True,
@@ -228,8 +246,9 @@ class PreCommitValidator:
         rel_path = tmp_path.relative_to(git_root)
 
         try:
+            precommit_exe = _get_precommit_executable()
             result = subprocess.run(
-                ["pre-commit", "run", "--files", str(rel_path)],
+                [precommit_exe, "run", "--files", str(rel_path)],
                 cwd=git_root,
                 capture_output=True,
                 text=True,
@@ -298,7 +317,8 @@ class PreCommitValidator:
         early_result, git_root, _ = self._prepare_validation(file_path, content, encoding)
         if early_result is not None:
             return early_result
-        assert git_root is not None
+        if git_root is None:
+            raise RuntimeError("Git root not found despite passing early validation")
 
         errors, modified_content, valid_override = self._run_precommit(
             git_root,

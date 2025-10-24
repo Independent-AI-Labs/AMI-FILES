@@ -249,7 +249,8 @@ def _build_document_model(file_path: Path, extraction_result: Any) -> Document:
         extraction_method=extraction_result.extraction_method,
         processing_time_ms=extraction_result.processing_time_ms,
     )
-    assert document.id is not None, "Document should have an ID from StorageModel"
+    if document.id is None:
+        raise RuntimeError("Document should have an ID from StorageModel")
     return document
 
 

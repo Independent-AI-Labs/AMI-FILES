@@ -97,8 +97,9 @@ class GeminiClient:
 
         url = f"{self.BASE_URL}/models/{self.model}:{endpoint}?key={self.api_key}"
 
-        # Assert session is not None (guaranteed by connect() call above)
-        assert self.session is not None
+        # Verify session is not None (guaranteed by connect() call above)
+        if self.session is None:
+            raise RuntimeError("Session not initialized - call connect() first")
 
         try:
             async with self.session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as response:

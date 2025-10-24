@@ -1,6 +1,7 @@
 """Git tool functions for Filesys MCP server."""
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,21 @@ _SANITIZED_GIT_ENV_VARS = (
 )
 
 
+def _get_git_executable() -> str:
+    """Get absolute path to git executable.
+
+    Returns:
+        Absolute path to git command
+
+    Raises:
+        RuntimeError: If git is not found in PATH
+    """
+    git_path = shutil.which("git")
+    if git_path is None:
+        raise RuntimeError("git is not installed or not in PATH")
+    return git_path
+
+
 def _git_environment() -> dict[str, str]:
     """Return environment without git variables that break nested repos."""
     env = dict(os.environ)
@@ -27,8 +43,9 @@ def _git_environment() -> dict[str, str]:
 
 def _run_git_command(work_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Execute git command with sanitized environment."""
+    git_exe = _get_git_executable()
     return subprocess.run(
-        ["git", *args],
+        [git_exe, *args],
         cwd=work_dir,
         capture_output=True,
         text=True,
