@@ -1,5 +1,6 @@
 """Unit tests for git tools in filesystem MCP server."""
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -69,6 +70,13 @@ def _assert_git_call(mock_run: MagicMock, expected_cmd: list[str], cwd: Path) ->
 def mock_root_dir(tmp_path: Path) -> Path:
     """Create a mock root directory."""
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def mock_git_executable() -> Iterator[None]:
+    """Mock shutil.which to return 'git' for all tests."""
+    with patch("shutil.which", return_value="git"):
+        yield
 
 
 class TestGitStatus:

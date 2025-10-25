@@ -63,10 +63,14 @@ class TestPreCommitValidator:
         assert "File too large" in result["errors"][0]
 
     @pytest.mark.asyncio
+    @patch("shutil.which")
     @patch("subprocess.run")
-    async def test_validate_with_precommit_success(self, mock_run: MagicMock) -> None:
+    async def test_validate_with_precommit_success(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test successful validation with pre-commit."""
         validator = PreCommitValidator()
+
+        # Mock pre-commit executable availability
+        mock_which.return_value = "/usr/bin/pre-commit"
 
         # Mock pre-commit check
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -88,10 +92,14 @@ class TestPreCommitValidator:
             assert result["errors"] == []
 
     @pytest.mark.asyncio
+    @patch("shutil.which")
     @patch("subprocess.run")
-    async def test_validate_with_precommit_failure(self, mock_run: MagicMock) -> None:
+    async def test_validate_with_precommit_failure(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test validation failure with pre-commit."""
         validator = PreCommitValidator()
+
+        # Mock pre-commit executable availability
+        mock_which.return_value = "/usr/bin/pre-commit"
 
         # Mock pre-commit check with failure
         mock_run.return_value = MagicMock(returncode=1, stdout="Error: Line too long", stderr="")
@@ -161,10 +169,14 @@ class TestPreCommitValidator:
             assert "Not in a git repository" in result["errors"][0]
 
     @pytest.mark.asyncio
+    @patch("shutil.which")
     @patch("subprocess.run")
-    async def test_validate_with_auto_fix(self, mock_run: MagicMock) -> None:
+    async def test_validate_with_auto_fix(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test validation with automatic fixes applied by pre-commit."""
         validator = PreCommitValidator()
+
+        # Mock pre-commit executable availability
+        mock_which.return_value = "/usr/bin/pre-commit"
 
         # First run fails, second run succeeds (after fixes)
         mock_run.side_effect = [
@@ -197,22 +209,26 @@ class TestPreCommitValidator:
                 with contextlib.suppress(PermissionError, FileNotFoundError):
                     tmp_path.unlink()
 
-    def test_check_precommit_available(self) -> None:
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_check_precommit_available(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test checking if pre-commit is available."""
         validator = PreCommitValidator()
 
-        with patch("subprocess.run") as mock_run:
-            # Mock successful pre-commit check
-            mock_run.return_value = MagicMock(returncode=0)
+        # Mock pre-commit executable availability
+        mock_which.return_value = "/usr/bin/pre-commit"
 
-            # Mock git root with pre-commit config
-            with (
-                patch.object(Path, "exists") as mock_exists,
-                patch.object(Path, "cwd", return_value=Path("/project")),
-            ):
-                mock_exists.return_value = True
-                result = validator.is_precommit_available()
-                assert result is True
+        # Mock successful pre-commit check
+        mock_run.return_value = MagicMock(returncode=0)
+
+        # Mock git root with pre-commit config
+        with (
+            patch.object(Path, "exists") as mock_exists,
+            patch.object(Path, "cwd", return_value=Path("/project")),
+        ):
+            mock_exists.return_value = True
+            result = validator.is_precommit_available()
+            assert result is True
 
     def test_find_git_root(self) -> None:
         """Test finding git repository root."""

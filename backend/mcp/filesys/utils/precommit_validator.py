@@ -65,7 +65,7 @@ class PreCommitValidator:
 
             return False
 
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
+        except (subprocess.SubprocessError, FileNotFoundError, RuntimeError) as e:
             logger.debug(f"Pre-commit availability check failed: {e}")
             return False
 
