@@ -11,8 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Setup logger
-logging.basicConfig(level=logging.INFO, format="%(message)s")
+# Configure logging to stderr
+logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
 
