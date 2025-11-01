@@ -5,41 +5,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from base.backend.utils.standard_imports import setup_imports
-from files.backend.mcp.filesys.tools.document_tools import (
-    index_document_tool,
-    read_document_tool,
-    read_image_tool,
-)
-from files.backend.mcp.filesys.tools.filesystem_tools import (
-    create_dirs_tool,
-    delete_paths_tool,
-    find_paths_tool,
-    list_dir_tool,
-    modify_file_tool,
-    read_from_file_tool,
-    replace_in_file_tool,
-    write_to_file_tool,
-)
-from files.backend.mcp.filesys.tools.git_tools import (
-    git_commit_tool,
-    git_diff_tool,
-    git_fetch_tool,
-    git_history_tool,
-    git_merge_abort_tool,
-    git_pull_tool,
-    git_push_tool,
-    git_restore_tool,
-    git_stage_tool,
-    git_status_tool,
-    git_unstage_tool,
-)
-from files.backend.mcp.filesys.tools.python_tools import (
-    python_list_tasks_tool,
-    python_run_background_tool,
-    python_run_tool,
-    python_task_cancel_tool,
-    python_task_status_tool,
-)
+from files.backend.mcp.filesys.tools.facade.document import document_tool
+from files.backend.mcp.filesys.tools.facade.filesystem import filesystem_tool
+from files.backend.mcp.filesys.tools.facade.git import git_tool
+from files.backend.mcp.filesys.tools.facade.python import python_tool
 from loguru import logger
 from mcp.server import FastMCP
 
@@ -82,55 +51,37 @@ class FilesysFastMCPServer:
         logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}, session: {self.session_id}")
 
     def _register_tools(self) -> None:
-        """Register filesystem tools with FastMCP."""
+        """Register facade tools with FastMCP."""
 
-        self._register_filesystem_tools()
-        self._register_git_tools()
-        self._register_python_tools()
-        self._register_document_tools()
+        self._register_filesystem_tool()
+        self._register_git_tool()
+        self._register_python_tool()
+        self._register_document_tool()
 
-    def _register_filesystem_tools(self) -> None:
-        """Register file manipulation tools."""
+    def _register_filesystem_tool(self) -> None:
+        """Register filesystem facade tool."""
 
-        @self.mcp.tool(description="List directory contents")
-        async def list_dir(
-            path: str = ".",
+        @self.mcp.tool(
+            description=(
+                "Filesystem operations (list, create, find, read, write, delete, modify, replace). "
+                "Write operations run LLM validation for Python files using scripts/automation validators. "
+                "Session-based validation with fail-open behavior."
+            )
+        )
+        async def filesystem(
+            action: Literal["list", "create", "find", "read", "write", "delete", "modify", "replace"],
+            path: str | None = None,
+            paths: list[str] | None = None,
+            content: str | None = None,
             recursive: bool = False,
             pattern: str | None = None,
             limit: int = 100,
-        ) -> dict[str, Any]:
-            return await list_dir_tool(self.root_dir, path, recursive, pattern, limit)
-
-        @self.mcp.tool(description="Create directories")
-        async def create_dirs(paths: list[str]) -> dict[str, Any]:
-            return await create_dirs_tool(self.root_dir, paths)
-
-        @self.mcp.tool(description="Find paths matching patterns or keywords")
-        async def find_paths(
             patterns: list[str] | None = None,
-            path: str = ".",
             keywords_path_name: list[str] | None = None,
             keywords_file_content: list[str] | None = None,
             regex_keywords: bool = False,
             use_fast_search: bool = True,
             max_workers: int = 8,
-            recursive: bool = True,
-        ) -> dict[str, Any]:
-            return await find_paths_tool(
-                self.root_dir,
-                patterns,
-                path,
-                keywords_path_name,
-                keywords_file_content,
-                regex_keywords,
-                use_fast_search,
-                max_workers,
-                recursive,
-            )
-
-        @self.mcp.tool(description="Read file contents")
-        async def read_from_file(
-            path: str,
             start_line: int | None = None,
             end_line: int | None = None,
             start_offset_inclusive: int = 0,
@@ -139,10 +90,28 @@ class FilesysFastMCPServer:
             output_format: str = "raw_utf8",
             file_encoding: str = "utf-8",
             add_line_numbers: bool | None = None,
+            mode: str = "text",
+            input_format: str = "raw_utf8",
+            validate_with_llm: bool = True,
+            new_content: str | None = None,
+            old_content: str | None = None,
+            is_regex: bool = False,
         ) -> dict[str, Any]:
-            return await read_from_file_tool(
+            return await filesystem_tool(
                 self.root_dir,
+                action,
                 path,
+                paths,
+                content,
+                recursive,
+                pattern,
+                limit,
+                patterns,
+                keywords_path_name,
+                keywords_file_content,
+                regex_keywords,
+                use_fast_search,
+                max_workers,
                 start_line,
                 end_line,
                 start_offset_inclusive,
@@ -151,222 +120,143 @@ class FilesysFastMCPServer:
                 output_format,
                 file_encoding,
                 add_line_numbers,
-            )
-
-        @self.mcp.tool(description="Write content to file with LLM validation")
-        async def write_to_file(
-            path: str,
-            content: str,
-            mode: str = "text",
-            input_format: str = "raw_utf8",
-            file_encoding: str = "utf-8",
-            validate_with_llm: bool = True,
-        ) -> dict[str, Any]:
-            return await write_to_file_tool(
-                self.root_dir,
-                path,
-                content,
                 mode,
                 input_format,
-                file_encoding,
                 validate_with_llm,
-                self.session_id,  # Pass session ID for validation
-            )
-
-        @self.mcp.tool(description="Delete files or directories")
-        async def delete_paths(paths: list[str]) -> dict[str, Any]:
-            return await delete_paths_tool(self.root_dir, paths)
-
-        @self.mcp.tool(description="Modify file by replacing content at specific offsets")
-        async def modify_file(
-            path: str,
-            start_offset_inclusive: int,
-            end_offset_inclusive: int,
-            new_content: str,
-            offset_type: str = "line",
-        ) -> dict[str, Any]:
-            return await modify_file_tool(
-                self.root_dir,
-                path,
-                start_offset_inclusive,
-                end_offset_inclusive,
+                self.session_id,
                 new_content,
-                offset_type,
+                old_content,
+                is_regex,
             )
 
-        @self.mcp.tool(description="Replace text in file")
-        async def replace_in_file(
-            path: str,
-            old_content: str,
-            new_content: str,
-            is_regex: bool = False,
-        ) -> dict[str, Any]:
-            return await replace_in_file_tool(self.root_dir, path, old_content, new_content, is_regex)
+    def _register_git_tool(self) -> None:
+        """Register git facade tool."""
 
-    def _register_git_tools(self) -> None:
-        """Register git interaction tools."""
-
-        self._register_git_repo_tools()
-        self._register_git_remote_tools()
-
-    def _register_git_repo_tools(self) -> None:
-        """Register local git repository operations."""
-
-        @self.mcp.tool(description="Get git repository status")
-        async def git_status(
+        @self.mcp.tool(
+            description=(
+                "Git operations (status, stage, unstage, commit, diff, history, restore, fetch, pull, push, merge_abort). "
+                "Commit calls scripts/git_commit.sh (auto-stages all changes). "
+                "Push calls scripts/git_push.sh (runs tests before push)."
+            )
+        )
+        async def git(
+            action: Literal[
+                "status",
+                "stage",
+                "unstage",
+                "commit",
+                "diff",
+                "history",
+                "restore",
+                "fetch",
+                "pull",
+                "push",
+                "merge_abort",
+            ],
             repo_path: str | None = None,
-            short: bool = False,
-            branch: bool = True,
-            untracked: bool = True,
-        ) -> dict[str, Any]:
-            return await git_status_tool(self.root_dir, repo_path, short, branch, untracked)
-
-        @self.mcp.tool(description="Stage files for commit")
-        async def git_stage(
-            repo_path: str | None = None,
+            message: str | None = None,
             files: list[str] | None = None,
             stage_all: bool = False,
-        ) -> dict[str, Any]:
-            return await git_stage_tool(self.root_dir, repo_path, files, stage_all)
-
-        @self.mcp.tool(description="Unstage files")
-        async def git_unstage(
-            repo_path: str | None = None,
-            files: list[str] | None = None,
             unstage_all: bool = False,
-        ) -> dict[str, Any]:
-            return await git_unstage_tool(self.root_dir, repo_path, files, unstage_all)
-
-        @self.mcp.tool(description="Commit changes")
-        async def git_commit(
-            message: str,
-            repo_path: str | None = None,
             amend: bool = False,
-        ) -> dict[str, Any]:
-            return await git_commit_tool(self.root_dir, message, repo_path, amend)
-
-        @self.mcp.tool(description="Show differences")
-        async def git_diff(
-            repo_path: str | None = None,
             staged: bool = False,
-            files: list[str] | None = None,
-        ) -> dict[str, Any]:
-            return await git_diff_tool(self.root_dir, repo_path, staged, files)
-
-        @self.mcp.tool(description="Show commit history")
-        async def git_history(
-            repo_path: str | None = None,
             limit: int = 10,
             oneline: bool = False,
             grep: str | None = None,
-        ) -> dict[str, Any]:
-            return await git_history_tool(self.root_dir, repo_path, limit, oneline, grep)
-
-        @self.mcp.tool(description="Restore files")
-        async def git_restore(
-            repo_path: str | None = None,
-            files: list[str] | None = None,
-            staged: bool = False,
-        ) -> dict[str, Any]:
-            return await git_restore_tool(self.root_dir, repo_path, files, staged)
-
-    def _register_git_remote_tools(self) -> None:
-        """Register git remote interaction tools."""
-
-        @self.mcp.tool(description="Fetch from remote")
-        async def git_fetch(
-            repo_path: str | None = None,
             remote: str = "origin",
+            branch: str | None = None,
             fetch_all: bool = False,
-        ) -> dict[str, Any]:
-            return await git_fetch_tool(self.root_dir, repo_path, remote, fetch_all)
-
-        @self.mcp.tool(description="Pull from remote")
-        async def git_pull(
-            repo_path: str | None = None,
-            remote: str = "origin",
-            branch: str | None = None,
             rebase: bool = False,
-        ) -> dict[str, Any]:
-            return await git_pull_tool(self.root_dir, repo_path, remote, branch, rebase)
-
-        @self.mcp.tool(description="Push to remote")
-        async def git_push(
-            repo_path: str | None = None,
-            remote: str = "origin",
-            branch: str | None = None,
             force: bool = False,
             set_upstream: bool = False,
+            short: bool = False,
+            show_branch: bool = True,
+            untracked: bool = True,
         ) -> dict[str, Any]:
-            return await git_push_tool(self.root_dir, repo_path, remote, branch, force, set_upstream)
+            return await git_tool(
+                self.root_dir,
+                action,
+                repo_path,
+                message,
+                files,
+                stage_all,
+                unstage_all,
+                amend,
+                staged,
+                limit,
+                oneline,
+                grep,
+                remote,
+                branch,
+                fetch_all,
+                rebase,
+                force,
+                set_upstream,
+                short,
+                show_branch,
+                untracked,
+            )
 
-        @self.mcp.tool(description="Abort merge")
-        async def git_merge_abort(repo_path: str | None = None) -> dict[str, Any]:
-            return await git_merge_abort_tool(self.root_dir, repo_path)
+    def _register_python_tool(self) -> None:
+        """Register python facade tool."""
 
-    def _register_python_tools(self) -> None:
-        """Register Python execution tools."""
-
-        @self.mcp.tool(description="Execute Python script or code")
-        async def python_run(
-            script: str,
+        @self.mcp.tool(
+            description=(
+                "Python execution (run, run_background, task_status, task_cancel, list_tasks). Background tasks return task_id for monitoring and cancellation."
+            )
+        )
+        async def python(
+            action: Literal["run", "run_background", "task_status", "task_cancel", "list_tasks"],
+            script: str | None = None,
             args: list[str] | None = None,
             timeout: int = 300,
             cwd: str | None = None,
-            python: str = "venv",
+            python_: str = "venv",
+            task_id: str | None = None,
         ) -> dict[str, Any]:
-            return await python_run_tool(self.root_dir, script, args, timeout, cwd, python)
+            return await python_tool(
+                self.root_dir,
+                action,
+                script,
+                args,
+                timeout,
+                cwd,
+                python_,
+                task_id,
+            )
 
-        @self.mcp.tool(description="Execute Python script in background")
-        async def python_run_background(
-            script: str,
-            args: list[str] | None = None,
-            cwd: str | None = None,
-            python: str = "venv",
-        ) -> dict[str, Any]:
-            return await python_run_background_tool(self.root_dir, script, args, cwd, python)
+    def _register_document_tool(self) -> None:
+        """Register document facade tool."""
 
-        @self.mcp.tool(description="Get status of background Python task")
-        async def python_task_status(task_id: str) -> dict[str, Any]:
-            return await python_task_status_tool(task_id)
-
-        @self.mcp.tool(description="Cancel background Python task")
-        async def python_task_cancel(task_id: str) -> dict[str, Any]:
-            return await python_task_cancel_tool(task_id)
-
-        @self.mcp.tool(description="List all background Python tasks")
-        async def python_list_tasks() -> dict[str, Any]:
-            return await python_list_tasks_tool()
-
-    def _register_document_tools(self) -> None:
-        """Register document analysis tools."""
-
-        @self.mcp.tool(description="Parse and index documents for searchable storage")
-        async def index_document(
-            path: str,
-            extract_tables: bool = True,
-            extract_images: bool = False,
-            storage_backends: list[str] | None = None,
-        ) -> dict[str, Any]:
-            return await index_document_tool(path, extract_tables, extract_images, storage_backends)
-
-        @self.mcp.tool(description="Read and parse documents into structured data")
-        async def read_document(
+        @self.mcp.tool(
+            description=(
+                "Document processing (index, read, read_image). "
+                "Index stores documents for search. Read extracts structured data. "
+                "read_image analyzes images using multimodal LLM."
+            )
+        )
+        async def document(
+            action: Literal["index", "read", "read_image"],
             path: str,
             extraction_template: dict[str, Any] | None = None,
             extract_tables: bool = True,
             extract_images: bool = False,
-        ) -> dict[str, Any]:
-            return await read_document_tool(path, extraction_template, extract_tables, extract_images)
-
-        @self.mcp.tool(description="Analyze images using multimodal LLM")
-        async def read_image(
-            path: str,
+            storage_backends: list[str] | None = None,
             instruction: str | None = None,
             perform_ocr: bool = True,
             extract_chart_data: bool = False,
         ) -> dict[str, Any]:
-            return await read_image_tool(path, instruction, perform_ocr, extract_chart_data)
+            return await document_tool(
+                action,
+                path,
+                extraction_template,
+                extract_tables,
+                extract_images,
+                storage_backends,
+                instruction,
+                perform_ocr,
+                extract_chart_data,
+            )
 
     def run(self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio") -> None:
         """Run the server.

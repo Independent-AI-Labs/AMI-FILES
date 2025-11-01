@@ -58,12 +58,11 @@ class TestFilesysFastMCPServer:
                 tools_response = await session.list_tools()
                 tool_names = [tool.name for tool in tools_response.tools]
 
-                # Verify expected filesystem tools exist
-                assert "read_from_file" in tool_names
-                assert "write_to_file" in tool_names
-                assert "list_dir" in tool_names
-                assert "delete_paths" in tool_names
-                assert "create_dirs" in tool_names
+                # Verify expected facade tools exist (consolidated from 27 to 4)
+                assert "filesystem" in tool_names
+                assert "git" in tool_names
+                assert "python" in tool_names
+                assert "document" in tool_names
 
     @pytest.mark.asyncio
     async def test_file_operations(self) -> None:
@@ -91,20 +90,25 @@ class TestFilesysFastMCPServer:
                 # Initialize
                 await session.initialize()
 
-                # Write a file
+                # Write a file using filesystem facade
                 test_content = "Hello from FastMCP test!"
                 write_result = await session.call_tool(
-                    "write_to_file",
-                    arguments={"path": "test.txt", "content": test_content},
+                    "filesystem",
+                    arguments={
+                        "action": "write",
+                        "path": "test.txt",
+                        "content": test_content,
+                        "validate_with_llm": False,
+                    },
                 )
 
                 assert write_result is not None
                 assert len(write_result.content) > 0
 
-                # Read the file back
+                # Read the file back using filesystem facade
                 read_result = await session.call_tool(
-                    "read_from_file",
-                    arguments={"path": "test.txt"},
+                    "filesystem",
+                    arguments={"action": "read", "path": "test.txt"},
                 )
 
                 assert read_result is not None
