@@ -1,4 +1,15 @@
-"""Pre-commit validation for file operations."""
+"""Pre-commit validation for file operations.
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Use scripts/automation/validators.py instead for LLM-based validation.
+
+The filesystem_tools.py now uses:
+- validate_python_full() from scripts/automation/validators
+- LLM-based diff audit instead of ruff validation
+- Session-based validation with fail-open behavior
+
+This file is kept temporarily for backward compatibility only.
+"""
 
 import contextlib
 import shutil

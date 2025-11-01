@@ -1,5 +1,6 @@
 """Git tool functions for Filesys MCP server."""
 
+import asyncio
 import os
 import shutil
 import subprocess
@@ -52,6 +53,26 @@ def _run_git_command(work_dir: Path, *args: str) -> subprocess.CompletedProcess[
         check=False,
         env=_git_environment(),
     )
+
+
+def _find_orchestrator_root(start_path: Path) -> Path:
+    """Find orchestrator root (has /base and /scripts directories).
+
+    Args:
+        start_path: Starting path for search (typically repo root)
+
+    Returns:
+        Path to orchestrator root
+
+    Raises:
+        RuntimeError: If orchestrator root not found
+    """
+    current = start_path.resolve()
+    while current != current.parent:
+        if (current / "base").exists() and (current / "scripts").exists():
+            return current
+        current = current.parent
+    raise RuntimeError(f"Cannot find orchestrator root from {start_path}")
 
 
 async def git_status_tool(
@@ -151,26 +172,54 @@ async def git_commit_tool(
     message: str,
     repo_path: str | None = None,
     amend: bool = False,
-    include_tracked: bool = False,
 ) -> dict[str, Any]:
-    """Commit changes."""
+    """Commit changes using scripts/git_commit.sh (auto-stages all changes).
+
+    Args:
+        root_dir: Root directory for operations
+        message: Commit message
+        repo_path: Path to repository (relative to root_dir)
+        amend: Whether to amend previous commit
+
+    Returns:
+        Dict with success status and output, or error details
+    """
     logger.debug(f"Committing: message={message}, repo_path={repo_path}, amend={amend}")
 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["commit", "-m", message]
-        if amend:
-            cmd.append("--amend")
-        if include_tracked:
-            cmd.append("-a")
+        # Find orchestrator root and git_commit.sh script
+        orchestrator_root = _find_orchestrator_root(work_dir)
+        git_commit_script = orchestrator_root / "scripts" / "git_commit.sh"
 
-        result = _run_git_command(work_dir, *cmd)
+        if not git_commit_script.exists():
+            raise FileNotFoundError(f"git_commit.sh not found: {git_commit_script}")
 
-        if result.returncode != 0:
-            return {"error": result.stderr}
+        # Build command - script auto-stages all changes (git add -A)
+        cmd = [str(git_commit_script), "--amend"] if amend else [str(git_commit_script), message]
 
-        return {"success": True, "output": result.stdout}
+        # Call script directly via subprocess
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=work_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
+        success = proc.returncode == 0
+        output = stdout.decode() if success else stderr.decode()
+
+        if not success:
+            return {"error": output}
+
+        return {
+            "success": True,
+            "output": output,
+            "auto_staged": True,  # Script always runs git add -A
+        }
+
     except Exception as e:
         logger.error(f"Failed to commit: {e}")
         return {"error": str(e)}
@@ -334,27 +383,61 @@ async def git_push_tool(
     force: bool = False,
     set_upstream: bool = False,
 ) -> dict[str, Any]:
-    """Push to remote."""
+    """Push to remote using scripts/git_push.sh (runs tests first).
+
+    Args:
+        root_dir: Root directory for operations
+        repo_path: Path to repository (relative to root_dir)
+        remote: Remote name
+        branch: Branch name
+        force: Force push (will be rejected by script)
+        set_upstream: Set upstream tracking
+
+    Returns:
+        Dict with success status and output, or error details
+    """
     logger.debug(f"Pushing: repo_path={repo_path}, remote={remote}, branch={branch}")
 
     try:
         work_dir = validate_path(root_dir, repo_path or ".")
 
-        cmd = ["push"]
-        if force:
-            cmd.append("--force")
-        if set_upstream:
-            cmd.append("--set-upstream")
-        cmd.append(remote)
+        # Find orchestrator root and git_push.sh script
+        orchestrator_root = _find_orchestrator_root(work_dir)
+        git_push_script = orchestrator_root / "scripts" / "git_push.sh"
+
+        if not git_push_script.exists():
+            raise FileNotFoundError(f"git_push.sh not found: {git_push_script}")
+
+        # Build command - script runs tests before push
+        cmd = [str(git_push_script), remote]
         if branch:
             cmd.append(branch)
+        if force:
+            cmd.append("--force")  # Script will reject this
+        if set_upstream:
+            cmd.extend(["--set-upstream", remote, branch or ""])
 
-        result = _run_git_command(work_dir, *cmd)
+        # Call script directly via subprocess
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=work_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
 
-        if result.returncode != 0:
-            return {"error": result.stderr}
+        success = proc.returncode == 0
+        output = stdout.decode() if success else stderr.decode()
 
-        return {"success": True, "output": result.stdout}
+        if not success:
+            return {"error": output}
+
+        return {
+            "success": True,
+            "output": output,
+            "tests_run": True,  # Script always runs tests
+        }
+
     except Exception as e:
         logger.error(f"Failed to push: {e}")
         return {"error": str(e)}

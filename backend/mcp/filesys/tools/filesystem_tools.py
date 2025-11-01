@@ -13,8 +13,8 @@ from files.backend.mcp.filesys.utils.file_utils import (
     OutputFormat,
 )
 from files.backend.mcp.filesys.utils.path_utils import validate_path
-from files.backend.mcp.filesys.utils.precommit_validator import PreCommitValidator
 from loguru import logger
+from scripts.automation.validators import validate_python_full
 
 LINE_BREAK = "\n"
 
@@ -378,31 +378,51 @@ def _decode_write_content(
     return decoded_bytes.decode(file_encoding)
 
 
-async def _run_precommit_validation(
+async def _run_validation(
     safe_path: Path,
     write_content: str | bytes,
-    file_encoding: str,
-    validate_with_precommit: bool,
+    session_id: str | None,
+    validate: bool,
 ) -> tuple[str | bytes, dict[str, Any] | None]:
-    """Run pre-commit validation when enabled."""
-    if not validate_with_precommit:
+    """Run LLM-based validation for Python files using scripts/automation logic.
+
+    Args:
+        safe_path: Path to file being written
+        write_content: Content to write
+        session_id: Session ID for validation (required for LLM audit)
+        validate: Whether to run validation
+
+    Returns:
+        Tuple of (content, error_response). If validation fails, error_response contains error dict.
+    """
+    if not validate or session_id is None:
         return write_content, None
 
-    validator = PreCommitValidator()
-    validation_result = await validator.validate_content(safe_path, write_content, encoding=file_encoding)
+    # Only validate Python files
+    if safe_path.suffix != ".py":
+        return write_content, None
 
-    if not validation_result["valid"]:
-        error_details = "\n".join(validation_result["errors"]) if validation_result["errors"] else "Pre-commit hooks failed"
+    # Get old content for diff audit
+    old_content = safe_path.read_text() if safe_path.exists() else ""
+
+    # Convert bytes to string if needed
+    new_content = write_content if isinstance(write_content, str) else write_content.decode("utf-8")
+
+    # Use shared validation logic from scripts/automation
+    is_valid, feedback = validate_python_full(
+        file_path=safe_path,
+        old_content=old_content,
+        new_content=new_content,
+        session_id=session_id,
+    )
+
+    if not is_valid:
         return write_content, {
-            "error": f"Pre-commit validation failed:\n{error_details}",
-            "validation_errors": validation_result["errors"],
+            "error": f"Code quality validation failed:\n{feedback}",
+            "validation_failed": True,
         }
 
-    modified_content = validation_result["modified_content"]
-    if modified_content != write_content and validation_result["errors"]:
-        logger.info(f"Pre-commit hooks modified {safe_path}")
-
-    return modified_content, None
+    return write_content, None
 
 
 def _write_validated_content(
@@ -435,9 +455,24 @@ async def write_to_file_tool(
     mode: str = "text",
     input_format: str = "raw_utf8",
     file_encoding: str = "utf-8",
-    validate_with_precommit: bool = True,
+    validate_with_llm: bool = True,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
-    """Write content to file with pre-commit validation."""
+    """Write content to file with LLM-based validation for Python files.
+
+    Args:
+        root_dir: Root directory for operations
+        path: Path to file (relative to root_dir)
+        content: Content to write
+        mode: Write mode ("text" or "binary")
+        input_format: Input content format
+        file_encoding: File encoding for text files
+        validate_with_llm: Whether to run LLM validation (Python files only)
+        session_id: Session ID for validation (required for LLM audit)
+
+    Returns:
+        Dict with success status, path, and bytes_written, or error details
+    """
     logger.debug(f"Writing to file: path={path}")
 
     try:
@@ -447,11 +482,11 @@ async def write_to_file_tool(
         input_enum = InputFormat[input_format.replace("-", "_").upper()]
         write_content = _decode_write_content(content, mode, input_enum, file_encoding)
 
-        write_content, error_response = await _run_precommit_validation(
+        write_content, error_response = await _run_validation(
             safe_path,
             write_content,
-            file_encoding,
-            validate_with_precommit,
+            session_id,
+            validate_with_llm,
         )
         if error_response:
             return error_response

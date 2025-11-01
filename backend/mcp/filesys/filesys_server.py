@@ -1,5 +1,6 @@
 """Filesystem MCP server using FastMCP."""
 
+import uuid
 from pathlib import Path
 from typing import Any, Literal
 
@@ -60,6 +61,9 @@ class FilesysFastMCPServer:
         self.config = config or {}
         self.root_dir = Path(root_dir) if root_dir else Path.cwd()
 
+        # Generate session ID for validation and logging
+        self.session_id = self.config.get("session_id", str(uuid.uuid4())[:8])
+
         # Ensure root directory exists and is absolute
         try:
             self.root_dir = self.root_dir.resolve(strict=True)
@@ -75,7 +79,7 @@ class FilesysFastMCPServer:
         # Register tools
         self._register_tools()
 
-        logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}")
+        logger.info(f"Filesystem MCP server initialized with root: {self.root_dir}, session: {self.session_id}")
 
     def _register_tools(self) -> None:
         """Register filesystem tools with FastMCP."""
@@ -149,14 +153,14 @@ class FilesysFastMCPServer:
                 add_line_numbers,
             )
 
-        @self.mcp.tool(description="Write content to file")
+        @self.mcp.tool(description="Write content to file with LLM validation")
         async def write_to_file(
             path: str,
             content: str,
             mode: str = "text",
             input_format: str = "raw_utf8",
             file_encoding: str = "utf-8",
-            validate_with_precommit: bool = True,
+            validate_with_llm: bool = True,
         ) -> dict[str, Any]:
             return await write_to_file_tool(
                 self.root_dir,
@@ -165,7 +169,8 @@ class FilesysFastMCPServer:
                 mode,
                 input_format,
                 file_encoding,
-                validate_with_precommit,
+                validate_with_llm,
+                self.session_id,  # Pass session ID for validation
             )
 
         @self.mcp.tool(description="Delete files or directories")
@@ -237,9 +242,8 @@ class FilesysFastMCPServer:
             message: str,
             repo_path: str | None = None,
             amend: bool = False,
-            include_tracked: bool = False,
         ) -> dict[str, Any]:
-            return await git_commit_tool(self.root_dir, message, repo_path, amend, include_tracked)
+            return await git_commit_tool(self.root_dir, message, repo_path, amend)
 
         @self.mcp.tool(description="Show differences")
         async def git_diff(
