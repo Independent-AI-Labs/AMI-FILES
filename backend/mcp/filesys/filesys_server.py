@@ -8,6 +8,7 @@ from base.backend.utils.standard_imports import setup_imports
 from files.backend.mcp.filesys.tools.facade.document import document_tool
 from files.backend.mcp.filesys.tools.facade.filesystem import filesystem_tool
 from files.backend.mcp.filesys.tools.facade.git import git_tool
+from files.backend.mcp.filesys.tools.facade.metadata import metadata_tool
 from files.backend.mcp.filesys.tools.facade.python import python_tool
 from loguru import logger
 from mcp.server import FastMCP
@@ -57,6 +58,7 @@ class FilesysFastMCPServer:
         self._register_git_tool()
         self._register_python_tool()
         self._register_document_tool()
+        self._register_metadata_tool()
 
     def _register_filesystem_tool(self) -> None:
         """Register filesystem facade tool."""
@@ -256,6 +258,35 @@ class FilesysFastMCPServer:
                 instruction,
                 perform_ocr,
                 extract_chart_data,
+            )
+
+    def _register_metadata_tool(self) -> None:
+        """Register metadata facade tool."""
+
+        @self.mcp.tool(
+            description=(
+                "Metadata management (list, read, write, delete, git). "
+                "Manages progress/feedback logs and .meta directories. "
+                "Uses git for versioning metadata changes."
+            )
+        )
+        async def metadata(
+            action: Literal["list", "read", "write", "delete", "git"],
+            module: str | None = None,
+            artifact_type: str | None = None,
+            artifact_path: str | None = None,
+            content: str | None = None,
+            git_action: str | None = None,
+            message: str | None = None,
+        ) -> dict[str, Any]:
+            return await metadata_tool(
+                action,
+                module,
+                artifact_type,
+                artifact_path,
+                content,
+                git_action,
+                message,
             )
 
     def run(self, transport: Literal["stdio", "sse", "streamable-http"] = "stdio") -> None:

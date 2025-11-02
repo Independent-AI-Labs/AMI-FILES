@@ -60,8 +60,8 @@ class TestPythonExecution:
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "print('Hello, World!')", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "print('Hello, World!')", "timeout": 5},
                     )
 
                     text_content = get_text_content(result)
@@ -86,8 +86,9 @@ class TestPythonExecution:
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
+                        "python",
                         arguments={
+                            "action": "run",
                             "script": "raise ValueError('Test error')",
                             "timeout": 5,
                         },
@@ -107,8 +108,9 @@ class TestPythonExecution:
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
+                        "python",
                         arguments={
+                            "action": "run",
                             "script": "import time; time.sleep(10)",
                             "timeout": 1,
                         },
@@ -162,8 +164,9 @@ sys.exit(0)
 print("Arguments:", sys.argv[1:])
 """
                     result = await client.call_tool(
-                        "python_run",
+                        "python",
                         arguments={
+                            "action": "run",
                             "script": script,
                             "args": ["arg1", "arg2", "arg3"],
                             "timeout": 5,
@@ -218,8 +221,8 @@ print("Files:", os.listdir('.'))
 
                     script = "import sys; print(sys.executable)"
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": script, "python": "system", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": script, "python": "system", "timeout": 5},
                     )
 
                     response = json.loads(get_text_content(result))
@@ -237,8 +240,8 @@ print("Files:", os.listdir('.'))
                     # This test assumes we have a .venv in the root dir
                     script = "import sys; print(sys.executable)"
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": script, "python": "venv", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": script, "python": "venv", "timeout": 5},
                     )
 
                     response = json.loads(get_text_content(result))
@@ -259,7 +262,7 @@ for i in range(5):
     print(f"Line {i+1}")
 print("Done")
 """
-                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
+                    result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -280,7 +283,7 @@ print("Done")
 data = {'timestamp': datetime.datetime.now().isoformat(), 'pid': os.getpid()}
 print(json.dumps(data))
 """
-                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
+                    result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -321,8 +324,8 @@ class TestPythonErrorHandling:
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "print('unclosed", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "print('unclosed", "timeout": 5},
                     )
 
                     response = json.loads(get_text_content(result))
@@ -338,8 +341,8 @@ class TestPythonErrorHandling:
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "import nonexistent_module", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "import nonexistent_module", "timeout": 5},
                     )
 
                     response = json.loads(get_text_content(result))
@@ -361,7 +364,7 @@ def divide(a, b):
 result = divide(10, 0)
 print(result)
 """
-                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
+                    result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is False
@@ -376,8 +379,9 @@ print(result)
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
+                        "python",
                         arguments={
+                            "action": "run",
                             "script": "print('test')",
                             "cwd": "/nonexistent/path",
                             "timeout": 5,
@@ -396,8 +400,8 @@ print(result)
                     await client.initialize()
 
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "/nonexistent/script.py", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "/nonexistent/script.py", "timeout": 5},
                     )
 
                     response = json.loads(get_text_content(result))
@@ -474,7 +478,7 @@ with open('output.txt', 'r') as f:
 
                     scripts = [f"print('Result {i}')" for i in range(5)]
 
-                    tasks = [client.call_tool("python_run", arguments={"script": script, "timeout": 5}) for script in scripts]
+                    tasks = [client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5}) for script in scripts]
 
                     results = await asyncio.gather(*tasks)
 
@@ -495,7 +499,7 @@ with open('output.txt', 'r') as f:
 for i in range(1000):
     print(f"Line {i}: " + "x" * 100)
 """
-                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 10})
+                    result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 10})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -516,7 +520,7 @@ sys.stderr.write("Error output 1\\n")
 print("Normal output 2")
 sys.stderr.write("Error output 2\\n")
 """
-                    result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
+                    result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
 
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -535,8 +539,8 @@ sys.stderr.write("Error output 2\\n")
 
                     # Test exit code 0
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "import sys; sys.exit(0)", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "import sys; sys.exit(0)", "timeout": 5},
                     )
                     response = json.loads(get_text_content(result))
                     assert response["success"] is True
@@ -544,8 +548,8 @@ sys.stderr.write("Error output 2\\n")
 
                     # Test exit code 1
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "import sys; sys.exit(1)", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "import sys; sys.exit(1)", "timeout": 5},
                     )
                     response = json.loads(get_text_content(result))
                     assert response["success"] is False
@@ -553,8 +557,8 @@ sys.stderr.write("Error output 2\\n")
 
                     # Test exit code 42
                     result = await client.call_tool(
-                        "python_run",
-                        arguments={"script": "import sys; sys.exit(42)", "timeout": 5},
+                        "python",
+                        arguments={"action": "run", "script": "import sys; sys.exit(42)", "timeout": 5},
                     )
                     response = json.loads(get_text_content(result))
                     assert response["success"] is False

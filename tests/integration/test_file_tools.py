@@ -66,8 +66,8 @@ class TestFileTools:
 
                 # 1. Create directory structure
                 result = await session.call_tool(
-                    "create_dirs",
-                    arguments={"paths": ["project/src", "project/tests", "project/docs"]},
+                    "filesystem",
+                    arguments={"action": "create", "paths": ["project/src", "project/tests", "project/docs"]},
                 )
                 assert result is not None
 
@@ -94,13 +94,13 @@ class TestFileTools:
 
                 for file_path, content in files_to_create:
                     result = await session.call_tool(
-                        "write_to_file",
-                        arguments={"path": file_path, "content": content},
+                        "filesystem",
+                        arguments={"action": "write", "path": file_path, "content": content, "validate_with_llm": False},
                     )
                     assert result is not None
 
                 # 3. List directory structure
-                result = await session.call_tool("list_dir", arguments={"path": "project", "recursive": True})
+                result = await session.call_tool("filesystem", arguments={"action": "list", "path": "project", "recursive": True})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -120,8 +120,8 @@ class TestFileTools:
 
                 # 4. Find Python files
                 result = await session.call_tool(
-                    "find_paths",
-                    arguments={"path": "project", "keywords_path_name": [".py"]},
+                    "filesystem",
+                    arguments={"action": "find", "path": "project", "keywords_path_name": [".py"]},
                 )
                 assert result is not None
                 response_text = get_text_content(result)
@@ -132,8 +132,9 @@ class TestFileTools:
 
                 # 5. Modify a file - replace line 6 (the print statement)
                 result = await session.call_tool(
-                    "modify_file",
+                    "filesystem",
                     arguments={
+                        "action": "modify",
                         "path": "project/src/main.py",
                         "start_offset_inclusive": 6,
                         "end_offset_inclusive": 6,
@@ -144,7 +145,7 @@ class TestFileTools:
                 assert result is not None
 
                 # 6. Read modified file
-                result = await session.call_tool("read_from_file", arguments={"path": "project/src/main.py"})
+                result = await session.call_tool("filesystem", arguments={"action": "read", "path": "project/src/main.py"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -158,8 +159,9 @@ class TestFileTools:
                     "project/tests/test_main.py",
                 ]:
                     result = await session.call_tool(
-                        "replace_in_file",
+                        "filesystem",
                         arguments={
+                            "action": "replace",
                             "path": py_file,
                             "old_content": "def ",
                             "new_content": "async def ",
@@ -168,14 +170,14 @@ class TestFileTools:
                     assert result is not None
 
                 # 8. Verify replacements
-                result = await session.call_tool("read_from_file", arguments={"path": "project/src/utils.py"})
+                result = await session.call_tool("filesystem", arguments={"action": "read", "path": "project/src/utils.py"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
                 assert "async def helper" in response["content"]
 
                 # 9. Clean up specific files
-                result = await session.call_tool("delete_paths", arguments={"paths": ["project/.gitignore"]})
+                result = await session.call_tool("filesystem", arguments={"action": "delete", "paths": ["project/.gitignore"]})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -183,7 +185,7 @@ class TestFileTools:
                 assert len(response["deleted"]) == 1
 
                 # 10. Final directory listing
-                result = await session.call_tool("list_dir", arguments={"path": "project"})
+                result = await session.call_tool("filesystem", arguments={"action": "list", "path": "project"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -207,8 +209,8 @@ class TestFileTools:
                 large_content = "x" * 1024 * 1024  # 1MB of 'x'
 
                 result = await session.call_tool(
-                    "write_to_file",
-                    arguments={"path": "large.txt", "content": large_content},
+                    "filesystem",
+                    arguments={"action": "write", "path": "large.txt", "content": large_content, "validate_with_llm": False},
                 )
                 assert result is not None
 
@@ -233,17 +235,19 @@ class TestFileTools:
                 marked_content = large_content[:middle] + "MARKER" + large_content[middle + 6 :]
 
                 result = await session.call_tool(
-                    "write_to_file",
+                    "filesystem",
                     arguments={
+                        "action": "write",
                         "path": "large_marked.txt",
                         "content": marked_content,
+                        "validate_with_llm": False,
                     },
                 )
                 assert result is not None
 
                 result = await session.call_tool(
-                    "find_paths",
-                    arguments={"path": ".", "keywords_file_content": ["MARKER"]},
+                    "filesystem",
+                    arguments={"action": "find", "path": ".", "keywords_file_content": ["MARKER"]},
                 )
                 assert result is not None
                 response_text = get_text_content(result)
@@ -267,10 +271,12 @@ class TestFileTools:
                 tasks = []
                 for i in range(10):
                     task = session.call_tool(
-                        "write_to_file",
+                        "filesystem",
                         arguments={
+                            "action": "write",
                             "path": f"concurrent_{i}.txt",
                             "content": f"Content {i}",
+                            "validate_with_llm": False,
                         },
                     )
                     tasks.append(task)
@@ -281,7 +287,7 @@ class TestFileTools:
                 # Read multiple files concurrently
                 tasks = []
                 for i in range(10):
-                    task = session.call_tool("read_from_file", arguments={"path": f"concurrent_{i}.txt"})
+                    task = session.call_tool("filesystem", arguments={"action": "read", "path": f"concurrent_{i}.txt"})
                     tasks.append(task)
 
                 results = await asyncio.gather(*tasks)
@@ -294,7 +300,7 @@ class TestFileTools:
 
                 # Delete all concurrently created files
                 paths = [f"concurrent_{i}.txt" for i in range(10)]
-                result = await session.call_tool("delete_paths", arguments={"paths": paths})
+                result = await session.call_tool("filesystem", arguments={"action": "delete", "paths": paths})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -316,18 +322,21 @@ class TestFileTools:
                 qp_encoded = quopri.encodestring(content_with_special.encode()).decode()
 
                 result = await session.call_tool(
-                    "write_to_file",
+                    "filesystem",
                     arguments={
+                        "action": "write",
                         "path": "quoted.txt",
                         "content": qp_encoded,
                         "input_format": "quoted-printable",
+                        "validate_with_llm": False,
                     },
                 )
                 assert result is not None
 
                 result = await session.call_tool(
-                    "read_from_file",
+                    "filesystem",
                     arguments={
+                        "action": "read",
                         "path": "quoted.txt",
                         "output_format": "quoted-printable",
                     },
@@ -339,19 +348,21 @@ class TestFileTools:
                 b64_encoded = base64.b64encode(b64_content.encode()).decode()
 
                 result = await session.call_tool(
-                    "write_to_file",
+                    "filesystem",
                     arguments={
+                        "action": "write",
                         "path": "base64.txt",
                         "content": b64_encoded,
                         "input_format": "base64",
                         "mode": "binary",
+                        "validate_with_llm": False,
                     },
                 )
                 assert result is not None
 
                 result = await session.call_tool(
-                    "read_from_file",
-                    arguments={"path": "base64.txt", "output_format": "base64"},
+                    "filesystem",
+                    arguments={"action": "read", "path": "base64.txt", "output_format": "base64"},
                 )
                 assert result is not None
                 response_text = get_text_content(result)
@@ -373,7 +384,7 @@ class TestFileTools:
                 await session.initialize()
 
                 # Read non-existent file
-                result = await session.call_tool("read_from_file", arguments={"path": "nonexistent.txt"})
+                result = await session.call_tool("filesystem", arguments={"action": "read", "path": "nonexistent.txt"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -381,7 +392,7 @@ class TestFileTools:
                 assert "does not exist" in response["error"]
 
                 # List non-existent directory
-                result = await session.call_tool("list_dir", arguments={"path": "nonexistent_dir"})
+                result = await session.call_tool("filesystem", arguments={"action": "list", "path": "nonexistent_dir"})
                 assert result is not None
                 response_text = get_text_content(result)
                 response = json.loads(response_text)
@@ -389,8 +400,8 @@ class TestFileTools:
 
                 # Write to path outside root
                 result = await session.call_tool(
-                    "write_to_file",
-                    arguments={"path": "../../outside.txt", "content": "Should fail"},
+                    "filesystem",
+                    arguments={"action": "write", "path": "../../outside.txt", "content": "Should fail", "validate_with_llm": False},
                 )
                 assert result is not None
                 response_text = get_text_content(result)
@@ -400,8 +411,8 @@ class TestFileTools:
 
                 # Delete non-existent files
                 result = await session.call_tool(
-                    "delete_paths",
-                    arguments={"paths": ["nonexistent1.txt", "nonexistent2.txt"]},
+                    "filesystem",
+                    arguments={"action": "delete", "paths": ["nonexistent1.txt", "nonexistent2.txt"]},
                 )
                 assert result is not None
                 response_text = get_text_content(result)
@@ -411,8 +422,9 @@ class TestFileTools:
 
                 # Modify non-existent file
                 result = await session.call_tool(
-                    "modify_file",
+                    "filesystem",
                     arguments={
+                        "action": "modify",
                         "path": "nonexistent.txt",
                         "start_offset_inclusive": 0,
                         "end_offset_inclusive": 0,
@@ -426,8 +438,9 @@ class TestFileTools:
 
                 # Replace in non-existent file
                 result = await session.call_tool(
-                    "replace_in_file",
+                    "filesystem",
                     arguments={
+                        "action": "replace",
                         "path": "nonexistent.txt",
                         "old_content": "old",
                         "new_content": "new",
@@ -468,7 +481,7 @@ class TestFileTools:
                         assert isinstance(tool.inputSchema["required"], list)
 
                 # Test tool execution returns proper format
-                call_result = await session.call_tool("list_dir", arguments={"path": "."})
+                call_result = await session.call_tool("filesystem", arguments={"action": "list", "path": "."})
                 assert call_result is not None
                 assert isinstance(call_result.content, list)
                 assert len(call_result.content) > 0
