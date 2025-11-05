@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
+'exec "$(dirname "$0")/../scripts/ami-run.sh" "$(dirname "$0")/run_filesys.py" "$@" #'
+
 """Runner script for Filesys MCP server."""
 
 # Standard library imports FIRST

@@ -1,10 +1,10 @@
 """Filesystem MCP server using FastMCP."""
 
-import uuid
 from pathlib import Path
 from typing import Any, Literal
 
 from base.backend.utils.standard_imports import setup_imports
+from base.backend.utils.uuid_utils import uuid7
 from files.backend.mcp.filesys.tools.facade.document import document_tool
 from files.backend.mcp.filesys.tools.facade.filesystem import filesystem_tool
 from files.backend.mcp.filesys.tools.facade.git import git_tool
@@ -32,7 +32,7 @@ class FilesysFastMCPServer:
         self.root_dir = Path(root_dir) if root_dir else Path.cwd()
 
         # Generate session ID for validation and logging
-        self.session_id = self.config.get("session_id", str(uuid.uuid4())[:8])
+        self.session_id = self.config.get("session_id", uuid7().replace("-", "")[:8])
 
         # Ensure root directory exists and is absolute
         try:
