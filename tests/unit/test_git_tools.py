@@ -71,7 +71,15 @@ def mock_root_dir(tmp_path: Path) -> Path:
     """Create a mock root directory with orchestrator structure."""
     # Create base and scripts directories to satisfy orchestrator root detection
     (tmp_path / "base").mkdir()
-    (tmp_path / "scripts").mkdir()
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+
+    # Create dummy git_commit.sh and git_push.sh scripts
+    (scripts_dir / "git_commit.sh").write_text("#!/bin/bash\nexit 0\n")
+    (scripts_dir / "git_push.sh").write_text("#!/bin/bash\nexit 0\n")
+    (scripts_dir / "git_commit.sh").chmod(0o755)
+    (scripts_dir / "git_push.sh").chmod(0o755)
+
     return tmp_path
 
 
