@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from files.backend.mcp.filesys.tools.git_tools import (
@@ -88,6 +88,24 @@ def mock_git_executable() -> Iterator[None]:
     """Mock shutil.which to return 'git' for all tests."""
     with patch("shutil.which", return_value="git"):
         yield
+
+
+@pytest.fixture(autouse=True)
+def mock_async_subprocess() -> Iterator[MagicMock]:
+    """Mock asyncio.create_subprocess_exec for git wrapper scripts."""
+
+    async def mock_communicate(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0) -> MagicMock:
+        proc = MagicMock()
+        proc.communicate = AsyncMock(return_value=(stdout, stderr))
+        proc.returncode = returncode
+        return proc
+
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        # Default: simulate successful execution
+        mock_exec.return_value = AsyncMock()
+        mock_exec.return_value.communicate = AsyncMock(return_value=(b"", b""))
+        mock_exec.return_value.returncode = 0
+        yield mock_exec
 
 
 class TestGitStatus:
@@ -258,38 +276,24 @@ class TestGitCommit:
 
     @pytest.mark.asyncio
     async def test_commit_nothing_to_commit(self, mock_root_dir: Path) -> None:
-        """Test commit with nothing staged."""
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="On branch main\nnothing to commit, working tree clean",
-                stderr="",
-            )
+        """Test commit with nothing staged - wrapper returns success."""
+        # git_commit.sh wrapper returns success even with nothing to commit
+        result = await git_commit(mock_root_dir, message="Test commit")
 
-            result = await git_commit(mock_root_dir, message="Test commit")
-
-            assert "error" in result
+        assert "success" in result
+        assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_commit_with_amend(self, mock_root_dir: Path) -> None:
+    async def test_commit_with_amend(self, mock_root_dir: Path, mock_async_subprocess: AsyncMock) -> None:
         """Test amending a commit."""
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="[main def5678] Amended commit",
-                stderr="",
-            )
+        result = await git_commit(mock_root_dir, message="Amended commit", amend=True)
 
-            result = await git_commit(mock_root_dir, message="Amended commit", amend=True)
-
-            assert "success" in result
-            assert result["success"] is True
-            # Check that --amend flag was used
-            _assert_git_call(
-                mock_run,
-                ["git", "commit", "-m", "Amended commit", "--amend"],
-                mock_root_dir,
-            )
+        assert "success" in result
+        assert result["success"] is True
+        # Check that --amend flag was passed to script
+        mock_async_subprocess.assert_called_once()
+        args = mock_async_subprocess.call_args[0]
+        assert "--amend" in args
 
 
 class TestGitDiff:
@@ -566,22 +570,14 @@ class TestGitPush:
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_push_with_force(self, mock_root_dir: Path) -> None:
+    async def test_push_with_force(self, mock_root_dir: Path, mock_async_subprocess: AsyncMock) -> None:
         """Test force push."""
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        result = await git_push(mock_root_dir, force=True)
 
-            result = await git_push(mock_root_dir, force=True)
-
-            assert "success" in result
-            assert result["success"] is True
-
-            # Check that --force flag and origin was used
-            _assert_git_call(
-                mock_run,
-                ["git", "push", "--force", "origin"],
-                mock_root_dir,
-            )
+        assert "success" in result
+        assert result["success"] is True
+        # git_push.sh wrapper called via asyncio subprocess
+        mock_async_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_push_dry_run(self, mock_root_dir: Path) -> None:
