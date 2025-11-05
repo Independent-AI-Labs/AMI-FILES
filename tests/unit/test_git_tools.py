@@ -68,7 +68,10 @@ def _assert_git_call(mock_run: MagicMock, expected_cmd: list[str], cwd: Path) ->
 
 @pytest.fixture
 def mock_root_dir(tmp_path: Path) -> Path:
-    """Create a mock root directory."""
+    """Create a mock root directory with orchestrator structure."""
+    # Create base and scripts directories to satisfy orchestrator root detection
+    (tmp_path / "base").mkdir()
+    (tmp_path / "scripts").mkdir()
     return tmp_path
 
 
