@@ -74,11 +74,16 @@ def mock_root_dir(tmp_path: Path) -> Path:
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
 
-    # Create dummy git_commit.sh and git_push.sh scripts
-    (scripts_dir / "git_commit.sh").write_text("#!/bin/bash\nexit 0\n")
-    (scripts_dir / "git_push.sh").write_text("#!/bin/bash\nexit 0\n")
+    # Create dummy git wrapper scripts that accept module_path argument
+    # git_commit.sh expects: <module-path> <message> or <module-path> --amend [message]
+    (scripts_dir / "git_commit.sh").write_text("#!/bin/bash\nshift  # Remove module_path argument\nexit 0\n")
+    # git_push.sh expects: <module-path> [remote] [branch] [options]
+    (scripts_dir / "git_push.sh").write_text("#!/bin/bash\nshift  # Remove module_path argument\nexit 0\n")
     (scripts_dir / "git_commit.sh").chmod(0o755)
     (scripts_dir / "git_push.sh").chmod(0o755)
+
+    # Also need .git directory for orchestrator root detection
+    (tmp_path / ".git").mkdir()
 
     return tmp_path
 

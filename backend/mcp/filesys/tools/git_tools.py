@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from base.scripts.env.paths import find_orchestrator_root
 from files.backend.mcp.filesys.utils.path_utils import validate_path
 from loguru import logger
 
@@ -53,26 +54,6 @@ def _run_git_command(work_dir: Path, *args: str) -> subprocess.CompletedProcess[
         check=False,
         env=_git_environment(),
     )
-
-
-def _find_orchestrator_root(start_path: Path) -> Path:
-    """Find orchestrator root (has /base and /scripts directories).
-
-    Args:
-        start_path: Starting path for search (typically repo root)
-
-    Returns:
-        Path to orchestrator root
-
-    Raises:
-        RuntimeError: If orchestrator root not found
-    """
-    current = start_path.resolve()
-    while current != current.parent:
-        if (current / "base").exists() and (current / "scripts").exists():
-            return current
-        current = current.parent
-    raise RuntimeError(f"Cannot find orchestrator root from {start_path}")
 
 
 async def git_status_tool(
@@ -190,14 +171,22 @@ async def git_commit_tool(
         work_dir = validate_path(root_dir, repo_path or ".")
 
         # Find orchestrator root and git_commit.sh script
-        orchestrator_root = _find_orchestrator_root(work_dir)
-        git_commit_script = orchestrator_root / "scripts" / "git_commit.sh"
+        orchestrator_root = find_orchestrator_root(work_dir)
+        if orchestrator_root is None:
+            raise RuntimeError(f"Cannot find orchestrator root from {work_dir}")
 
+        git_commit_script = orchestrator_root / "scripts" / "git_commit.sh"
         if not git_commit_script.exists():
             raise FileNotFoundError(f"git_commit.sh not found: {git_commit_script}")
 
-        # Build command - script auto-stages all changes (git add -A)
-        cmd = [str(git_commit_script), "--amend"] if amend else [str(git_commit_script), message]
+        # Build command - script expects: git_commit.sh <module-path> <message>
+        # or: git_commit.sh <module-path> --amend [message]
+        if amend:
+            cmd = [str(git_commit_script), str(work_dir), "--amend"]
+            if message:
+                cmd.append(message)
+        else:
+            cmd = [str(git_commit_script), str(work_dir), message]
 
         # Call script directly via subprocess
         proc = await asyncio.create_subprocess_exec(
@@ -402,14 +391,16 @@ async def git_push_tool(
         work_dir = validate_path(root_dir, repo_path or ".")
 
         # Find orchestrator root and git_push.sh script
-        orchestrator_root = _find_orchestrator_root(work_dir)
-        git_push_script = orchestrator_root / "scripts" / "git_push.sh"
+        orchestrator_root = find_orchestrator_root(work_dir)
+        if orchestrator_root is None:
+            raise RuntimeError(f"Cannot find orchestrator root from {work_dir}")
 
+        git_push_script = orchestrator_root / "scripts" / "git_push.sh"
         if not git_push_script.exists():
             raise FileNotFoundError(f"git_push.sh not found: {git_push_script}")
 
-        # Build command - script runs tests before push
-        cmd = [str(git_push_script), remote]
+        # Build command - script expects: git_push.sh <module-path> [remote] [branch] [options]
+        cmd = [str(git_push_script), str(work_dir), remote]
         if branch:
             cmd.append(branch)
         if force:

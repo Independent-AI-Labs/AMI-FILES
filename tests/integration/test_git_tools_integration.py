@@ -56,8 +56,41 @@ def _run_git(args: list[str], cwd: Path) -> None:
 
 @pytest.fixture
 def git_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Create a temporary git repository."""
+    """Create a temporary git repository with orchestrator structure."""
     repo_root = tmp_path_factory.mktemp("files_git_repo")
+
+    # Create orchestrator structure FIRST (before git init)
+    # This allows find_orchestrator_root() to find it
+    (repo_root / "base").mkdir()
+    scripts_dir = repo_root / "scripts"
+    scripts_dir.mkdir()
+
+    # Create dummy git wrapper scripts that accept module_path argument
+    # git_commit.sh expects: <module-path> <message> or <module-path> --amend [message]
+    (scripts_dir / "git_commit.sh").write_text(
+        "#!/bin/bash\n"
+        "# Simple wrapper that shifts off module_path and passes rest to git commit\n"
+        "shift  # Remove module_path argument\n"
+        "git add -A  # Auto-stage like production script\n"
+        "# Handle --amend case\n"
+        'if [ "$1" = "--amend" ]; then\n'
+        '  if [ -n "$2" ]; then\n'
+        '    exec git commit --amend -m "$2"\n'
+        "  else\n"
+        "    exec git commit --amend --no-edit\n"
+        "  fi\n"
+        "else\n"
+        '  exec git commit -m "$1"\n'
+        "fi\n"
+    )
+    # git_push.sh expects: <module-path> [remote] [branch] [options]
+    (scripts_dir / "git_push.sh").write_text(
+        '#!/bin/bash\n# Simple wrapper that shifts off module_path and passes rest to git push\nshift  # Remove module_path argument\nexec git push "$@"\n'
+    )
+    (scripts_dir / "git_commit.sh").chmod(0o755)
+    (scripts_dir / "git_push.sh").chmod(0o755)
+
+    # Now initialize git repository
     _run_git(["init"], repo_root)
     _run_git(["config", "--local", "user.email", "test@example.com"], repo_root)
     _run_git(["config", "--local", "user.name", "Test User"], repo_root)
