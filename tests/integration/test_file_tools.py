@@ -216,8 +216,9 @@ class TestFileTools:
 
                 # Read with offsets
                 result = await session.call_tool(
-                    "read_from_file",
+                    "filesystem",
                     arguments={
+                        "action": "read",
                         "path": "large.txt",
                         "start_offset_inclusive": 0,
                         "end_offset_inclusive": 1023,
@@ -487,7 +488,7 @@ class TestFileTools:
                 assert len(call_result.content) > 0
 
                 # Error responses should have error key in the response
-                call_result = await session.call_tool("read_from_file", arguments={"path": "nonexistent.txt"})
+                call_result = await session.call_tool("filesystem", arguments={"action": "read", "path": "nonexistent.txt"})
                 assert call_result is not None
                 response_text = get_text_content(call_result)
                 response = json.loads(response_text)

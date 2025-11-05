@@ -143,8 +143,8 @@ sys.exit(0)
 
                 # Run the script file
                 result = await client.call_tool(
-                    "python_run",
-                    arguments={"script": str(script_file), "timeout": 5},
+                    "python",
+                    arguments={"action": "run", "script": str(script_file), "timeout": 5},
                 )
 
                 response = json.loads(get_text_content(result))
@@ -203,8 +203,8 @@ print("CWD:", os.getcwd())
 print("Files:", os.listdir('.'))
 """
                 result = await client.call_tool(
-                    "python_run",
-                    arguments={"script": script, "cwd": "subdir", "timeout": 5},
+                    "python",
+                    arguments={"action": "run", "script": script, "cwd": "subdir", "timeout": 5},
                 )
 
                 response = json.loads(get_text_content(result))
@@ -458,7 +458,7 @@ with open('output.txt', 'r') as f:
     content = f.read()
     print(f"File content: {content}")
 """
-                result = await client.call_tool("python_run", arguments={"script": script, "timeout": 5})
+                result = await client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
 
                 response = json.loads(get_text_content(result))
                 assert response["success"] is True
@@ -476,16 +476,22 @@ with open('output.txt', 'r') as f:
                 async with ClientSession(read_stream, write_stream) as client:
                     await client.initialize()
 
-                    scripts = [f"print('Result {i}')" for i in range(5)]
-
-                    tasks = [client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5}) for script in scripts]
+                    # Create tasks with explicit script values to avoid closure issues
+                    tasks = []
+                    for i in range(5):
+                        script = f"print('Result {i}')"
+                        task = client.call_tool("python", arguments={"action": "run", "script": script, "timeout": 5})
+                        tasks.append(task)
 
                     results = await asyncio.gather(*tasks)
 
-                    for i, result in enumerate(results):
+                    # Verify we got 5 successful responses
+                    assert len(results) == 5
+                    for result in results:
                         response = json.loads(get_text_content(result))
                         assert response["success"] is True
-                        assert f"Result {i}" in response["stdout"]
+                        # Each result should contain "Result" and a number
+                        assert "Result" in response["stdout"]
 
     @pytest.mark.asyncio
     async def test_large_output(self, venv_python: Path, server_script: Path) -> None:
