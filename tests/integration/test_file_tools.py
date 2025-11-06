@@ -24,7 +24,8 @@ def get_text_content(result: object) -> str:
     if hasattr(result, "content") and result.content and len(result.content) > 0:
         content_item = result.content[0]
         if isinstance(content_item, TextContent):
-            return content_item.text
+            text: str = content_item.text
+            return text
         raise TypeError(f"Expected TextContent, got {type(content_item)}")
     raise ValueError("No content found in result")
 
@@ -51,7 +52,8 @@ class TestFileTools:
             args=["-u", str(server_script), "--root-dir", temp_dir],
             env=None,
         )
-        return stdio_client(server_params)
+        result: AsyncContextManager[tuple[Any, Any]] = stdio_client(server_params)
+        return result
 
     @pytest.mark.asyncio
     async def test_complete_file_workflow(self, venv_python: Path, server_script: Path) -> None:

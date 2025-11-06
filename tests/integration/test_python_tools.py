@@ -22,7 +22,8 @@ def get_text_content(result: object) -> str:
     if hasattr(result, "content") and result.content and len(result.content) > 0:
         content_item = result.content[0]
         if isinstance(content_item, TextContent):
-            return content_item.text
+            text: str = content_item.text
+            return text
         raise TypeError(f"Expected TextContent, got {type(content_item)}")
     raise ValueError("No content found in result")
 

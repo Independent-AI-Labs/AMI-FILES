@@ -1,5 +1,6 @@
 """Metadata operations facade tool."""
 
+from collections.abc import Callable, Coroutine
 from typing import Any, Literal
 
 from files.backend.mcp.filesys.tools.metadata_tools import (
@@ -37,7 +38,7 @@ async def metadata_tool(
     """
     logger.debug(f"metadata_tool: action={action}, module={module}")
 
-    action_handlers = {
+    action_handlers: dict[str, Callable[[], Coroutine[Any, Any, dict[str, Any]]]] = {
         "list": lambda: metadata_list_tool(module),
         "read": lambda: _handle_read(module, artifact_type, artifact_path),
         "write": lambda: _handle_write(module, artifact_type, artifact_path, content),
@@ -47,7 +48,8 @@ async def metadata_tool(
 
     handler = action_handlers.get(action)
     if handler:
-        return await handler()
+        result: dict[str, Any] = await handler()
+        return result
     return {"error": f"Unknown action: {action}"}
 
 

@@ -19,7 +19,9 @@ def _get_response_text(result: Any) -> str:
     assert len(result.content) > 0
     content = result.content[0]
     assert isinstance(content, TextContent) or content.type == "text"
-    return cast(TextContent, content).text
+    text_content = cast(TextContent, content)
+    text: str = text_content.text
+    return text
 
 
 class TestFilesystemFacade:
